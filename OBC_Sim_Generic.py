@@ -5,7 +5,7 @@ Created on Mon Oct 14 15:14:45 2019
 
 Quick program to simulate the Zephyr OBC for repetative testing.
 
-The test cycle is defined in main.  All comms are logged to the log file. 
+The test cycle is defined in main.  All comms are logged to the log file.
 
 Command line usage:
     python3 OBC_sim.py /dev/tty.usbserial OBC_Sim_Log.txt
@@ -33,7 +33,7 @@ def crc16_ccitt(crc, data):
 
 def AddCRC(InputXMLString):
     crc = crc16_ccitt(0x1021,InputXMLString.encode("ASCII"))
-    
+
     return InputXMLString + '<CRC>' + str(crc) + '</CRC>\n'
 
 def prettify(xmlStr):
@@ -45,164 +45,164 @@ def prettify(xmlStr):
 
 def sendIM(instrument, InstrumentMode, filename, port):
     XML_IM = ET.Element('IM')
-    
+
     msg_id = ET.SubElement(XML_IM,'Msg')
     msg_id.text = '123'
-    
+
     inst_id = ET.SubElement(XML_IM,'Inst')
     inst_id.text = instrument
-    
+
     mode = ET.SubElement(XML_IM,'Mode')
     mode.text = InstrumentMode
 
     pretty_string = prettify(XML_IM)
-    without_first_line = pretty_string.split("\n",1)[1];
-    
+    without_first_line = pretty_string.split("\n",1)[1]
+
     output = AddCRC(without_first_line)
-    
+
     with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode()) 
-    	
+    	ser.write(output.encode())
+
     with open(filename, mode='a') as output_file:
         output_file.write("Sending IM\n")
-    
+
     print("Sending IM")
     return output
 
 def sendGPS(zenith, filename, port):
-    
+
     XML_GPS = ET.Element('GPS')
     msg_id = ET.SubElement(XML_GPS,'Msg')
     msg_id.text = '123'
-    
+
     date = ET.SubElement(XML_GPS,'Date')
     date.text = datetime.today().strftime('%Y/%m/%d')
-    
+
     time = ET.SubElement(XML_GPS,'Time')
     #time.text = datetime.today().strftime('%H:%M:%S')
     time.text = '11:59:00'
-    
+
     lon = ET.SubElement(XML_GPS,'Lon')
     lon.text = '-105.000000'
-    
+
     lat = ET.SubElement(XML_GPS,'Lat')
     lat.text = '40.000000'
-    
+
     alt = ET.SubElement(XML_GPS,'Alt')
     alt.text = '1620.3'
 
     sza = ET.SubElement(XML_GPS,'SZA')
-    sza.text = str(zenith)   
-    
+    sza.text = str(zenith)
+
     quality = ET.SubElement(XML_GPS,'Quality')
     quality.text = '3'
-    
+
     pretty_string = prettify(XML_GPS)
-    without_first_line = pretty_string.split("\n",1)[1];
+    without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
-    
+
     with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode()) 
-    	
+    	ser.write(output.encode())
+
     with open(filename, mode='a') as output_file:
         output_file.write("Sending GPS, SZA = " + str(zenith) + "\n")
-    
+
     print("Sending GPS, SZA = " + str(zenith))
     return output
 
 def sendTC(instrument, command, filename, port):
 
     XML_TC = ET.Element('TC')
-    
+
     msg_id = ET.SubElement(XML_TC,'Msg')
     msg_id.text = '123'
-    
+
     inst_id = ET.SubElement(XML_TC,'Inst')
     inst_id.text = instrument
-    
+
     length = ET.SubElement(XML_TC,'Length')
     length.text = str(len(command))
-    
+
     pretty_string = prettify(XML_TC)
-    without_first_line = pretty_string.split("\n",1)[1];
-    
+    without_first_line = pretty_string.split("\n",1)[1]
+
     crc = crc16_ccitt(0x1021,command.encode("ASCII"))
-    
+
     command = 'START' + command
     output = AddCRC(without_first_line)
     output = output + command
-    
+
     with serial.Serial(port, 115200) as ser:
-        ser.write(output.encode()) 
+        ser.write(output.encode())
         ser.write(crc.to_bytes(2,byteorder='big',signed=False))
         ser.write(b'END')
 
-    	
+
     with open(filename, mode='a') as output_file:
         output_file.write("Sending TC: " + command + "\n")
-    
+
     print("Sending TC: " + command)
     return output
-    
+
 def sendRAAck(ACK, filename, port):
-    
+
     XML_RAAck = ET.Element('RAAck')
-    
+
     msg_id = ET.SubElement(XML_RAAck,'Msg')
     msg_id.text = '123'
-    
+
     inst_id = ET.SubElement(XML_RAAck,'Inst')
     inst_id.text = 'RACHUTS'
-    
+
     ack = ET.SubElement(XML_RAAck, 'Ack')
     ack.text = ACK
-    
+
     pretty_string = prettify(XML_RAAck)
-    without_first_line = pretty_string.split("\n",1)[1];
+    without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
-    
+
     with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode()) 
-    	
+    	ser.write(output.encode())
+
     with open(filename, mode='a') as output_file:
         output_file.write("Sending RAAck\n")
-    
+
     print("Seding RAAck")
     return output
 
 def sendTMAck(instrument,ACK, filename, port):
     XML_TMAck = ET.Element('TMAck')
-    
+
     msg_id = ET.SubElement(XML_TMAck,'Msg')
     msg_id.text = '123'
-    
+
     inst_id = ET.SubElement(XML_TMAck,'Inst')
     inst_id.text = instrument
-    
+
     ack = ET.SubElement(XML_TMAck, 'Ack')
     ack.text = ACK
-    
+
     pretty_string = prettify(XML_TMAck)
-    without_first_line = pretty_string.split("\n",1)[1];
+    without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
-   
+
     with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode()) 
-    
+    	ser.write(output.encode())
+
     with open(filename, mode='a') as output_file:
         output_file.write("Sending TM Ack\n")
-    
+
     print("Sending TM Ack")
-    
+
     return output
 
 def listenFor(port, reply,terminator, time_out,filename):
-    
+
     print("Listening For: " + reply)
     with serial.Serial(port, 115200, timeout=time_out) as ser:
             line = ser.read_until(terminator,2000)
             print(str(line))
-            
+
     if len(line) > 0:
         with open(filename, mode='a') as output_file:
             output_file.write(str(line))
@@ -210,22 +210,22 @@ def listenFor(port, reply,terminator, time_out,filename):
             return True
         else:
             return False
-        
+
     return False
-  
-    
-                
-            
+
+
+
+
 def main():
     #port = sys.argv[1]
     #LogFile = sys.argv[2]
-    
+
     LogFile = 'OBC_LPC_test.txt'
     port = '/dev/tty.usbserial'
     instrument = 'LPC'
-  
+
     sendGPS(45,LogFile, port)
-    
+
     #listenFor(port,'IMR',b'</CRC>',60,LogFile)  #listen for and IMR for 60 seconds
     sleep(3)
     sendIM(instrument,'FL',LogFile,port)
@@ -233,7 +233,7 @@ def main():
 #    listenFor(port,'IMAck',b'</CRC>',5,LogFile) #listen for the IMAck
 #    sleep(1)
 #    sendGPS(45,LogFile, port)
-    
+
 #    for x in range(100):
 #        sendGPS(x,LogFile,port)
 #        print("Sending Redock command")
@@ -249,7 +249,7 @@ def main():
 #        print("Waiting for down motion complete MCB TM" )
 #        listenFor(port,'TM',b'END',60,LogFile) #down profile mcb tm
 #        sendTMAck('ACK',LogFile,port)
-#        
+#
 #        print("Waiting for up RA request")
 #        listenFor(port,'RA',b'</CRC>',60,LogFile) #listen for the RA
 #        sendRAAck('ACK',LogFile,port)
@@ -265,22 +265,21 @@ def main():
 #        if listenFor(port,'PU docked:',b'END',60,LogFile):#PU comms TM
 #            dock_success += 1
 #            print("Dock Success! Successes: " + str(dock_success) + " Failures: " + str(dock_fails))
-#        else: 
+#        else:
 #            dock_fails += 1
 #            print("Dock FAILED! Successes: " + str(dock_success) + " Failures: " + str(dock_fails))
-#            
+#
 #        sendTMAck('ACK',LogFile,port)
 #        sleep(1)
 #        print("Starting next cycle")
-        
-        
-        
-if (__name__ == '__main__'): 
-    main()          
-
-        
-
-  
 
 
-        
+
+if (__name__ == '__main__'):
+    main()
+
+
+
+
+
+
