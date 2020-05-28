@@ -68,8 +68,8 @@ def OutputWindowPrint(message):
     output_window['-output-'+sg.WRITE_ONLY_KEY].print(message)
 
 
-def DisplaySelectMessage():
-    global input_window, new_window
+def DisplayMessageSelection():
+    global input_window
 
     message_selector = [[sg.Text('Select a message to send')],
                         [],
@@ -83,27 +83,26 @@ def DisplaySelectMessage():
     input_window = sg.Window('Command Menu', message_selector)
 
 
-def WaitSelectMessage():
+def WaitMessageSelection():
     global input_window, current_message, new_window
 
     event, _ = input_window.read(timeout=10)
 
-    if event == '__TIMEOUT__':
+    if '__TIMEOUT__' == event:
         return
 
+    input_window.close()
+
+    # quit the program if the window is closed or Exit selected
+    if event in (None, 'Exit'):
+        exit()
     else:
-        input_window.close()
-
-        # quit the program if the window is closed or Exit selected
-        if event in (None, 'Exit'):
-            exit()
-        else:
-            current_message = event
-            new_window = True
+        current_message = event
+        new_window = True
 
 
-def DisplayIMMessage():
-    global input_window, new_window
+def DisplayIMSelection():
+    global input_window
 
     mode_selector = [[sg.Text('Select a mode')],
                      [],
@@ -118,64 +117,73 @@ def DisplayIMMessage():
     input_window = sg.Window('Mode Message Configurator', mode_selector)
 
 
-def WaitIMMessage():
+def WaitIMSelection():
     global input_window, current_message, new_window
 
     event, _ = input_window.read(timeout=10)
 
-    if event == '__TIMEOUT__':
+    if '__TIMEOUT__' == event:
         return
-    else:
-        input_window.close()
 
-        # quit the program if the window is closed or Exit selected
-        if event in (None, 'Exit'):
-            exit()
+    input_window.close()
 
-        # as long as cancel wasn't selected, set the mode
-        if 'Cancel' != event:
-            sg.Print("Setting mode:", event, background_color='blue')
-            # TODO: send
+    # quit the program if the window is closed or Exit selected
+    if event in (None, 'Exit'):
+        exit()
 
-        # go back to the message selector
-        current_message = 'waiting'
-        new_window = True
+    # as long as cancel wasn't selected, set the mode
+    if 'Cancel' != event:
+        sg.Print("Setting mode:", event, background_color='blue')
+        # TODO: send
+
+    # go back to the message selector
+    current_message = 'waiting'
+    new_window = True
 
 
-# def GPSMessage():
-#     gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
-#                     [sg.InputText('120')],
-#                     [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-#                      sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
-#                      sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+def DisplayGPSSelection():
+    global input_window
 
-#     # GUI mode selector with SZA float validation
-#     window = sg.Window('GPS Message Configurator', gps_selector)
-#     while True:
-#         event, values = window.read()
+    gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
+                    [sg.InputText('120')],
+                    [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
+                     sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
+                     sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
-#         if 'Submit' != event:
-#             break
+    # GUI GPS creator with SZA float validation
+    input_window = sg.Window('GPS Message Configurator', gps_selector)
 
-#         try:
-#             sza = float(values[0])
-#             if sza <= 180 and sza >= 0:
-#                 break
-#             else:
-#                 sg.popup('SZA must be between 0 and 180')
-#         except:
-#             sg.popup('SZA must be a float')
 
-#     window.close()
+def WaitGPSSelection():
+    global input_window, current_message, new_window
 
-#     # quit the program if the window is closed or Exit selected
-#     if event in (None, 'Exit'):
-#         exit()
-#     elif 'Cancel' == event:
-#         return
+    event, values = input_window.read()
 
-#     sg.Print("Sending GPS, SZA =", str(sza))
-#     # TODO: send
+    if '__TIMEOUT__' == event:
+        return
+
+    if 'Submit' == event:
+        try:
+            sza = float(values[0])
+            if sza > 180 or sza < 0:
+                sg.popup('SZA must be between 0 and 180')
+                return
+        except:
+            sg.popup('SZA must be a float')
+            return
+
+    input_window.close()
+
+    # quit the program if the window is closed or Exit selected
+    if event in (None, 'Exit'):
+        exit()
+    elif 'Cancel' != event:
+        sg.Print("Sending GPS, SZA =", str(sza))
+        # TODO: send
+
+    # go back to the message selector
+    current_message = 'waiting'
+    new_window = True
 
 
 def SWMessage():
@@ -183,26 +191,39 @@ def SWMessage():
     # TODO: send
 
 
-# def TCMessage():
-#     tc_selector = [[sg.Text('Input a telecommand:')],
-#                     [sg.InputText('1;')],
-#                     [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-#                      sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
-#                      sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+def DisplayTCSelection():
+    global input_window
 
-#     # GUI mode selector with SZA float validation
-#     window = sg.Window('TC Creator', tc_selector)
-#     event, values = window.read()
-#     window.close()
+    tc_selector = [[sg.Text('Input a telecommand:')],
+                    [sg.InputText('1;')],
+                    [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
+                     sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
+                     sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
-#     # quit the program if the window is closed or Exit selected
-#     if event in (None, 'Exit'):
-#         exit()
-#     elif 'Cancel' == event:
-#         return
+    # GUI TC creator
+    input_window = sg.Window('TC Creator', tc_selector)
 
-#     sg.Print("Sending TC:", values[0], background_color='green')
-#     # TODO: send
+
+def WaitTCSelection():
+    global input_window, current_message, new_window
+
+    event, values = input_window.read()
+
+    if '__TIMEOUT__' == event:
+        return
+
+    input_window.close()
+
+    # quit the program if the window is closed or Exit selected
+    if event in (None, 'Exit'):
+        exit()
+    elif 'Cancel' != event:
+        sg.Print("Sending TC:", values[0], background_color='green')
+        # TODO: send
+
+    # go back to the message selector
+    current_message = 'waiting'
+    new_window = True
 
 
 def SAckMessage():
@@ -224,18 +245,16 @@ def RunCommands():
 
     if new_window:
         if 'waiting' == current_message:
-            DisplaySelectMessage()
+            DisplayMessageSelection()
             new_window = False
 
         elif 'IM' == current_message:
-            DisplayIMMessage()
+            DisplayIMSelection()
             new_window = False
 
         elif 'GPS' == current_message:
-            #GPSMessage()
-            sg.Print("Unimplemented")
-            current_message = 'waiting'
-            new_window = True
+            DisplayGPSSelection()
+            new_window = False
 
         elif 'SW' == current_message:
             SWMessage()
@@ -243,10 +262,8 @@ def RunCommands():
             new_window = True
 
         elif 'TC' == current_message:
-            #TCMessage()
-            sg.Print("Unimplemented")
-            current_message = 'waiting'
-            new_window = True
+            DisplayTCSelection()
+            new_window = False
 
         elif 'SAck' == current_message:
             SAckMessage()
@@ -270,18 +287,16 @@ def RunCommands():
 
     else:
         if 'waiting' == current_message:
-            WaitSelectMessage()
+            WaitMessageSelection()
 
         elif 'IM' == current_message:
-            WaitIMMessage()
+            WaitIMSelection()
 
         elif 'GPS' == current_message:
-            #WaitGPSMessage()
-            sg.Print("Unimplemented")
+            WaitGPSSelection()
 
         elif 'TC' == current_message:
-            #TCMessage()
-            sg.Print("Unimplemented")
+            WaitTCSelection()
 
         else:
             sg.Print("Bad window to wait on")
