@@ -9,25 +9,19 @@ Created: May 2020
 '''
 
 # modules
-import OBC_GUI
+import OBC_GUI, OBC_Parser
 
 # libraries
 import threading, serial, queue, time, datetime, os
 
 # globals
 instrument = ''
-port_name = ''
-port = None
-date = ''
-start_time_file = ''
-start_time = ''
-output_dir = ''
 inst_filename = ''
 cmd_filename = ''
 
 
 def FileSetup():
-    global date, start_time_file, start_time, output_dir, inst_filename, cmd_filename
+    global inst_filename, cmd_filename
 
     # create dat and time strings
     current_datetime = datetime.datetime.now()
@@ -53,19 +47,8 @@ def FileSetup():
         inst.write(instrument + " Commands: " + date + " at " + start_time + "\n\n")
 
 
-def ReadInstrument(inst_queue):
-    while True:
-        new_line = str(port.readline())
-
-        new_line = new_line.rstrip() + '\n'
-        inst_queue.put(new_line)
-
-        with open(inst_filename, "a") as inst:
-            inst.write(new_line)
-
-
 def main():
-    global instrument, port_name, port
+    global instrument
 
     # create a queue for instrument serial messages
     inst_queue = queue.Queue()
@@ -92,7 +75,7 @@ def main():
     OBC_GUI.StartOutputWindow()
 
     # start listening for instrument messages over serial
-    threading.Thread(target=ReadInstrument, args=(inst_queue,)).start()
+    threading.Thread(target=OBC_Parser.ReadInstrument, args=(inst_queue,port,inst_filename)).start()
 
     while True:
         # run command GUI
