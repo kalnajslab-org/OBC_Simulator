@@ -9,6 +9,7 @@ Created: May 2020
 '''
 
 import PySimpleGUI as sg
+import os
 
 # useful globals
 ZephyrMessageTypes = ['IM', 'GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
@@ -19,6 +20,7 @@ input_window = None
 output_window = None
 current_message = 'waiting'
 new_window = True
+
 
 def WelcomeWindow():
     sg.theme('Dark')
@@ -37,7 +39,7 @@ def WelcomeWindow():
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
-        exit()
+        CloseAndExit()
 
     # assign the outputs
     if values[0]:
@@ -57,7 +59,7 @@ def WelcomeWindow():
 def StartOutputWindow():
     global output_window
 
-    instrument_output = [[sg.MLine(key='-output-'+sg.WRITE_ONLY_KEY, size=(80,10))]]
+    instrument_output = [[sg.MLine(key='-output-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
 
@@ -65,7 +67,7 @@ def StartOutputWindow():
 def OutputWindowPrint(message):
     global output_window
 
-    output_window['-output-'+sg.WRITE_ONLY_KEY].print(message)
+    output_window['-output-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 
 def DisplayMessageSelection():
@@ -95,7 +97,7 @@ def WaitMessageSelection():
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
-        exit()
+        CloseAndExit()
     else:
         current_message = event
         new_window = True
@@ -129,7 +131,7 @@ def WaitIMSelection():
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
-        exit()
+        CloseAndExit()
 
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
@@ -176,7 +178,7 @@ def WaitGPSSelection():
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
-        exit()
+        CloseAndExit()
     elif 'Cancel' != event:
         sg.Print("Sending GPS, SZA =", str(sza))
         # TODO: send
@@ -216,7 +218,7 @@ def WaitTCSelection():
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
-        exit()
+        CloseAndExit()
     elif 'Cancel' != event:
         sg.Print("Sending TC:", values[0], background_color='green')
         # TODO: send
@@ -235,9 +237,22 @@ def RAAckMessage():
     sg.Print("Sending RA ack")
     # TODO: send
 
+
 def TMAckMessage():
     sg.Print("Sending TM ack")
     # TODO: send
+
+
+def CloseAndExit():
+    global output_window, input_window
+
+    if output_window != None:
+        output_window.close()
+
+    if input_window != None:
+        input_window.close()
+
+    os._exit(0)
 
 
 def RunCommands():
@@ -281,7 +296,7 @@ def RunCommands():
             new_window = True
 
         else:
-            sg.Print("Unknown new window requested")
+            sg.Print("Unknown new window requested", background_color='orange')
             current_message = 'waiting'
             new_window = True
 
@@ -299,11 +314,6 @@ def RunCommands():
             WaitTCSelection()
 
         else:
-            sg.Print("Bad window to wait on")
+            sg.Print("Bad window to wait on", background_color='orange')
             current_message = 'waiting'
             new_window = True
-
-
-
-if (__name__ == '__main__'):
-    RunCommands()
