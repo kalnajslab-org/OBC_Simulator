@@ -76,13 +76,21 @@ def StartOutputWindow():
 def InstWindowPrint(message):
     global output_window
 
-    output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
+    if -1 != message.find('ERR: '):
+        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='red')
+    else:
+        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 
 def XMLWindowPrint(message):
     global output_window
 
-    output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
+    if -1 != message.find('TM') and -1 != message.find('CRIT'):
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='red')
+    elif -1 != message.find('TM') and -1 != message.find('WARN'):
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='orange')
+    else:
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 
 def DisplayMessageSelection():

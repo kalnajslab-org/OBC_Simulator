@@ -31,7 +31,7 @@ def HandleXMLMessage(first_line):
 
     # check for and parse a binary section if necessary
     xml_top = parse.parse('<{}>', first_line)
-    if 'TC' == xml_top[0]:
+    if 'TM' == xml_top[0]:
         binary_section = port.read_until(b'END')
         message += str(binary_section)
 
