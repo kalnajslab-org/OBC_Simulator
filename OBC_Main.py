@@ -16,7 +16,8 @@ import threading, serial, queue, time, datetime, os
 
 # globals
 instrument = ''
-port = ''
+port_name = ''
+port = None
 date = ''
 start_time_file = ''
 start_time = ''
@@ -26,7 +27,7 @@ cmd_filename = ''
 
 
 def FileSetup():
-    global date, start_time_file, start_time, output_dir, inst_filename, cmd_filename, instrument
+    global date, start_time_file, start_time, output_dir, inst_filename, cmd_filename
 
     # create dat and time strings
     current_datetime = datetime.datetime.now()
@@ -54,8 +55,7 @@ def FileSetup():
 
 def ReadInstrument(inst_queue):
     while True:
-        with serial.Serial(port) as inst_serial:
-            new_line = str(inst_serial.readline(), 'ascii')
+        new_line = str(port.readline())
 
         new_line = new_line.rstrip() + '\n'
         inst_queue.put(new_line)
@@ -65,16 +65,28 @@ def ReadInstrument(inst_queue):
 
 
 def main():
-    global instrument, port
+    global instrument, port_name, port
 
     # create a queue for instrument serial messages
     inst_queue = queue.Queue()
 
     # get basic information
-    instrument, port = OBC_GUI.WelcomeWindow()
+    instrument, port_name = OBC_GUI.WelcomeWindow()
+
+    # attempt to open the serial port
+    try:
+        port = serial.Serial(port_name, 115200)
+    except:
+        print("Error opening serial port")
+        exit()
 
     # set up the files and structure
     FileSetup()
+
+    # register globals with the GUI module
+    OBC_GUI.cmd_filename = cmd_filename
+    OBC_GUI.port = port
+    OBC_GUI.instrument = instrument
 
     # start the instrument output window
     OBC_GUI.StartOutputWindow()

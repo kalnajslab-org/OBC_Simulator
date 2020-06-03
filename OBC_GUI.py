@@ -9,9 +9,10 @@ Created: May 2020
 '''
 
 import PySimpleGUI as sg
-import os
+import os, threading
+import OBC_Sim_Generic
 
-# useful globals
+# message type globals
 ZephyrMessageTypes = ['IM', 'GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
 ZephyrModes = ['SB', 'FL', 'LP', 'SA', 'EF']
 
@@ -20,6 +21,11 @@ input_window = None
 output_window = None
 current_message = 'waiting'
 new_window = True
+
+# string globals
+port = ''
+cmd_filename = ''
+instrument = ''
 
 
 def WelcomeWindow():
@@ -43,17 +49,17 @@ def WelcomeWindow():
 
     # assign the outputs
     if values[0]:
-        instrument = 'RACHUTS'
+        inst = 'RACHUTS'
     elif values[1]:
-        instrument = 'FLOATS'
+        inst = 'FLOATS'
     else:
-        instrument = 'LPC'
+        inst = 'LPC'
     port = values[3]
 
-    sg.Print("Instrument:", instrument)
+    sg.Print("Instrument:", inst)
     sg.Print("Port:", port)
 
-    return instrument, port
+    return inst, port
 
 
 def StartOutputWindow():
@@ -136,7 +142,7 @@ def WaitIMSelection():
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
         sg.Print("Setting mode:", event, background_color='blue')
-        # TODO: send
+        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, port)
 
     # go back to the message selector
     current_message = 'waiting'
@@ -181,7 +187,7 @@ def WaitGPSSelection():
         CloseAndExit()
     elif 'Cancel' != event:
         sg.Print("Sending GPS, SZA =", str(sza))
-        # TODO: send
+        OBC_Sim_Generic.sendGPS(sza, cmd_filename, port)
 
     # go back to the message selector
     current_message = 'waiting'
@@ -190,7 +196,7 @@ def WaitGPSSelection():
 
 def SWMessage():
     sg.Print("Sending shutdown warning", background_color='red')
-    # TODO: send
+    OBC_Sim_Generic.sendSW(instrument, cmd_filename, port)
 
 
 def DisplayTCSelection():
@@ -221,7 +227,7 @@ def WaitTCSelection():
         CloseAndExit()
     elif 'Cancel' != event:
         sg.Print("Sending TC:", values[0], background_color='green')
-        # TODO: send
+        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, port)
 
     # go back to the message selector
     current_message = 'waiting'
@@ -230,17 +236,17 @@ def WaitTCSelection():
 
 def SAckMessage():
     sg.Print("Sending safety ack")
-    # TODO: send
+    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
 
 
 def RAAckMessage():
     sg.Print("Sending RA ack")
-    # TODO: send
+    OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
 
 
 def TMAckMessage():
     sg.Print("Sending TM ack")
-    # TODO: send
+    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
 
 
 def CloseAndExit():

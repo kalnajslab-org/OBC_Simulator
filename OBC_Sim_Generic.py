@@ -20,6 +20,7 @@ from xml.dom import minidom
 from datetime import datetime
 from time import sleep
 
+
 def crc16_ccitt(crc, data):
     msb = crc >> 8
     lsb = crc & 255
@@ -31,10 +32,12 @@ def crc16_ccitt(crc, data):
         lsb = (x ^ (x << 5)) & 255
     return (msb << 8) + lsb
 
+
 def AddCRC(InputXMLString):
     crc = crc16_ccitt(0x1021,InputXMLString.encode("ASCII"))
 
     return InputXMLString + '<CRC>' + str(crc) + '</CRC>\n'
+
 
 def prettify(xmlStr):
     INDENT = "\t"
@@ -60,14 +63,14 @@ def sendIM(instrument, InstrumentMode, filename, port):
 
     output = AddCRC(without_first_line)
 
-    with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode())
+    port.write(output.encode())
 
     with open(filename, mode='a') as output_file:
         output_file.write("Sending IM\n")
 
     print("Sending IM")
     return output
+
 
 def sendGPS(zenith, filename, port):
 
@@ -101,14 +104,14 @@ def sendGPS(zenith, filename, port):
     without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
 
-    with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode())
+    port.write(output.encode())
 
     with open(filename, mode='a') as output_file:
         output_file.write("Sending GPS, SZA = " + str(zenith) + "\n")
 
     print("Sending GPS, SZA = " + str(zenith))
     return output
+
 
 def sendTC(instrument, command, filename, port):
 
@@ -132,17 +135,42 @@ def sendTC(instrument, command, filename, port):
     output = AddCRC(without_first_line)
     output = output + command
 
-    with serial.Serial(port, 115200) as ser:
-        ser.write(output.encode())
-        ser.write(crc.to_bytes(2,byteorder='big',signed=False))
-        ser.write(b'END')
-
+    port.write(output.encode())
+    port.write(crc.to_bytes(2,byteorder='big',signed=False))
+    port.write(b'END')
 
     with open(filename, mode='a') as output_file:
         output_file.write("Sending TC: " + command + "\n")
 
     print("Sending TC: " + command)
     return output
+
+
+def sendSAck(instrument, ACK, filename, port):
+    XML_TMAck = ET.Element('SAck')
+
+    msg_id = ET.SubElement(XML_TMAck,'Msg')
+    msg_id.text = '123'
+
+    inst_id = ET.SubElement(XML_TMAck,'Inst')
+    inst_id.text = instrument
+
+    ack = ET.SubElement(XML_TMAck, 'Ack')
+    ack.text = ACK
+
+    pretty_string = prettify(XML_TMAck)
+    without_first_line = pretty_string.split("\n",1)[1]
+    output = AddCRC(without_first_line)
+
+    port.write(output.encode())
+
+    with open(filename, mode='a') as output_file:
+        output_file.write("Sending SAck\n")
+
+    print("Sending SAck")
+
+    return output
+
 
 def sendRAAck(ACK, filename, port):
 
@@ -161,8 +189,7 @@ def sendRAAck(ACK, filename, port):
     without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
 
-    with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode())
+    port.write(output.encode())
 
     with open(filename, mode='a') as output_file:
         output_file.write("Sending RAAck\n")
@@ -170,7 +197,8 @@ def sendRAAck(ACK, filename, port):
     print("Seding RAAck")
     return output
 
-def sendTMAck(instrument,ACK, filename, port):
+
+def sendTMAck(instrument, ACK, filename, port):
     XML_TMAck = ET.Element('TMAck')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
@@ -186,17 +214,40 @@ def sendTMAck(instrument,ACK, filename, port):
     without_first_line = pretty_string.split("\n",1)[1]
     output = AddCRC(without_first_line)
 
-    with serial.Serial(port, 115200) as ser:
-    	ser.write(output.encode())
+    port.write(output.encode())
 
     with open(filename, mode='a') as output_file:
-        output_file.write("Sending TM Ack\n")
+        output_file.write("Sending TMAck\n")
 
-    print("Sending TM Ack")
+    print("Sending TMAck")
 
     return output
 
-def listenFor(port, reply,terminator, time_out,filename):
+
+def sendSW(instrument, filename, port):
+    XML_TMAck = ET.Element('SW')
+
+    msg_id = ET.SubElement(XML_TMAck,'Msg')
+    msg_id.text = '123'
+
+    inst_id = ET.SubElement(XML_TMAck,'Inst')
+    inst_id.text = instrument
+
+    pretty_string = prettify(XML_TMAck)
+    without_first_line = pretty_string.split("\n",1)[1]
+    output = AddCRC(without_first_line)
+
+    port.write(output.encode())
+
+    with open(filename, mode='a') as output_file:
+        output_file.write("Sending SW\n")
+
+    print("Sending SW")
+
+    return output
+
+
+def listenFor(port, reply, terminator, time_out, filename):
 
     print("Listening For: " + reply)
     with serial.Serial(port, 115200, timeout=time_out) as ser:
