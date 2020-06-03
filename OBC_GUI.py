@@ -65,15 +65,24 @@ def WelcomeWindow():
 def StartOutputWindow():
     global output_window
 
-    instrument_output = [[sg.MLine(key='-output-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
+    instrument_output = [[sg.Text('Debug Output:')],
+                         [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25))],
+                         [sg.Text('XML Output:')],
+                         [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
 
 
-def OutputWindowPrint(message):
+def InstWindowPrint(message):
     global output_window
 
-    output_window['-output-'+sg.WRITE_ONLY_KEY].print(message, end="")
+    output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
+
+
+def XMLWindowPrint(message):
+    global output_window
+
+    output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 
 def DisplayMessageSelection():
@@ -165,7 +174,7 @@ def DisplayGPSSelection():
 def WaitGPSSelection():
     global input_window, current_message, new_window
 
-    event, values = input_window.read()
+    event, values = input_window.read(timeout=10)
 
     if '__TIMEOUT__' == event:
         return
@@ -215,7 +224,7 @@ def DisplayTCSelection():
 def WaitTCSelection():
     global input_window, current_message, new_window
 
-    event, values = input_window.read()
+    event, values = input_window.read(timeout=10)
 
     if '__TIMEOUT__' == event:
         return

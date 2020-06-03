@@ -50,8 +50,9 @@ def FileSetup():
 def main():
     global instrument
 
-    # create a queue for instrument serial messages
+    # create queues for instrument messages
     inst_queue = queue.Queue()
+    xml_queue = queue.Queue()
 
     # get basic information
     instrument, port_name = OBC_GUI.WelcomeWindow()
@@ -75,7 +76,7 @@ def main():
     OBC_GUI.StartOutputWindow()
 
     # start listening for instrument messages over serial
-    threading.Thread(target=OBC_Parser.ReadInstrument, args=(inst_queue,port,inst_filename)).start()
+    threading.Thread(target=OBC_Parser.ReadInstrument, args=(inst_queue,xml_queue,port,inst_filename)).start()
 
     while True:
         # run command GUI
@@ -83,7 +84,9 @@ def main():
 
         # print instrument messages as they arrive
         if not inst_queue.empty():
-            OBC_GUI.OutputWindowPrint(inst_queue.get())
+            OBC_GUI.InstWindowPrint(inst_queue.get())
+        if not xml_queue.empty():
+            OBC_GUI.XMLWindowPrint(xml_queue.get())
 
 
 if (__name__ == '__main__'):

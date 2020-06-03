@@ -131,6 +131,8 @@ def sendTC(instrument, command, filename, port):
 
     crc = crc16_ccitt(0x1021,command.encode("ASCII"))
 
+    print("Sending TC: " + command)
+
     command = 'START' + command
     output = AddCRC(without_first_line)
     output = output + command
@@ -142,7 +144,6 @@ def sendTC(instrument, command, filename, port):
     with open(filename, mode='a') as output_file:
         output_file.write("Sending TC: " + command + "\n")
 
-    print("Sending TC: " + command)
     return output
 
 
