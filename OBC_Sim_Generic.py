@@ -21,6 +21,15 @@ from datetime import datetime
 from time import sleep
 
 
+def GetTime():
+    # create date and time strings
+    current_datetime = datetime.now()
+    curr_time = str(current_datetime.time().strftime("%H:%M:%S"))
+    milliseconds = str(current_datetime.time().strftime("%f"))[:-3]
+
+    return curr_time, milliseconds
+
+
 def crc16_ccitt(crc, data):
     msb = crc >> 8
     lsb = crc & 255
@@ -65,10 +74,13 @@ def sendIM(instrument, InstrumentMode, filename, port):
 
     port.write(output.encode())
 
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
         output_file.write("Sending IM\n")
 
-    print("Sending IM")
     return output
 
 
@@ -106,10 +118,13 @@ def sendGPS(zenith, filename, port):
 
     port.write(output.encode())
 
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
         output_file.write("Sending GPS, SZA = " + str(zenith) + "\n")
 
-    print("Sending GPS, SZA = " + str(zenith))
     return output
 
 
@@ -131,8 +146,6 @@ def sendTC(instrument, command, filename, port):
 
     crc = crc16_ccitt(0x1021,command.encode("ASCII"))
 
-    print("Sending TC: " + command)
-
     command = 'START' + command
     output = AddCRC(without_first_line)
     output = output + command
@@ -141,7 +154,11 @@ def sendTC(instrument, command, filename, port):
     port.write(crc.to_bytes(2,byteorder='big',signed=False))
     port.write(b'END')
 
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
         output_file.write("Sending TC: " + command + "\n")
 
     return output
@@ -165,10 +182,12 @@ def sendSAck(instrument, ACK, filename, port):
 
     port.write(output.encode())
 
-    with open(filename, mode='a') as output_file:
-        output_file.write("Sending SAck\n")
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
 
-    print("Sending SAck")
+    with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
+        output_file.write("Sending SAck\n")
 
     return output
 
@@ -192,10 +211,13 @@ def sendRAAck(ACK, filename, port):
 
     port.write(output.encode())
 
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
         output_file.write("Sending RAAck\n")
 
-    print("Seding RAAck")
     return output
 
 
@@ -217,10 +239,12 @@ def sendTMAck(instrument, ACK, filename, port):
 
     port.write(output.encode())
 
-    with open(filename, mode='a') as output_file:
-        output_file.write("Sending TMAck\n")
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
 
-    print("Sending TMAck")
+    with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
+        output_file.write("Sending TMAck\n")
 
     return output
 
@@ -240,10 +264,12 @@ def sendSW(instrument, filename, port):
 
     port.write(output.encode())
 
-    with open(filename, mode='a') as output_file:
-        output_file.write("Sending SW\n")
+    time, millis = GetTime()
+    timestring = '[' + time + '.' + millis + '] '
 
-    print("Sending SW")
+    with open(filename, mode='a') as output_file:
+        output_file.write(timestring)
+        output_file.write("Sending SW\n")
 
     return output
 

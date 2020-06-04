@@ -24,11 +24,11 @@ def GetDateTime():
     # create date and time strings
     current_datetime = datetime.datetime.now()
     date = str(current_datetime.date().strftime("%d-%b-%y"))
-    start_time = str(current_datetime.time().strftime("%H:%M:%S"))
-    start_time_file = str(current_datetime.time().strftime("%H-%M-%S"))
+    curr_time = str(current_datetime.time().strftime("%H:%M:%S"))
+    curr_time_file = str(current_datetime.time().strftime("%H-%M-%S"))
     milliseconds = str(current_datetime.time().strftime("%f"))[:-3]
 
-    return date, start_time, start_time_file, milliseconds
+    return date, curr_time, curr_time_file, milliseconds
 
 
 def HandleDebugMessage(message):

@@ -156,9 +156,12 @@ def WaitIMSelection():
     if event in (None, 'Exit'):
         CloseAndExit()
 
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
-        sg.Print("Setting mode:", event, background_color='blue')
+        sg.Print(timestring + "Setting mode:", event, background_color='blue')
         OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, port)
 
     # go back to the message selector
@@ -199,11 +202,14 @@ def WaitGPSSelection():
 
     input_window.close()
 
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
         CloseAndExit()
     elif 'Cancel' != event:
-        sg.Print("Sending GPS, SZA =", str(sza))
+        sg.Print(timestring + "Sending GPS, SZA =", str(sza))
         OBC_Sim_Generic.sendGPS(sza, cmd_filename, port)
 
     # go back to the message selector
@@ -212,7 +218,10 @@ def WaitGPSSelection():
 
 
 def SWMessage():
-    sg.Print("Sending shutdown warning", background_color='red')
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    sg.Print(timestring + "Sending shutdown warning", background_color='red')
     OBC_Sim_Generic.sendSW(instrument, cmd_filename, port)
 
 
@@ -239,11 +248,14 @@ def WaitTCSelection():
 
     input_window.close()
 
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
         CloseAndExit()
     elif 'Cancel' != event:
-        sg.Print("Sending TC:", values[0], background_color='green')
+        sg.Print(timestring + "Sending TC:", values[0], background_color='green')
         OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, port)
 
     # go back to the message selector
@@ -252,17 +264,26 @@ def WaitTCSelection():
 
 
 def SAckMessage():
-    sg.Print("Sending safety ack")
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    sg.Print(timestring + "Sending safety ack")
     OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
 
 
 def RAAckMessage():
-    sg.Print("Sending RA ack")
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    sg.Print(timestring + "Sending RA ack")
     OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
 
 
 def TMAckMessage():
-    sg.Print("Sending TM ack")
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    sg.Print(timestring + "Sending TM ack")
     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
 
 
