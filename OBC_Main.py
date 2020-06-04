@@ -17,31 +17,38 @@ import threading, serial, queue, time, datetime, os
 # globals
 instrument = ''
 inst_filename = ''
+xml_filename = ''
 cmd_filename = ''
+tm_dir = ''
 
 
 def FileSetup():
-    global inst_filename, cmd_filename
+    global inst_filename, xml_filename, cmd_filename, tm_dir
 
-    # create dat and time strings
-    current_datetime = datetime.datetime.now()
-    date = str(current_datetime.date().strftime("%d-%b-%y"))
-    start_time_file = str(current_datetime.time().strftime("%H-%M-%S"))
-    start_time = str(current_datetime.time().strftime("%H:%M:%S"))
+    # create date and time strings for file creation
+    date, start_time, start_time_file, _ = OBC_Parser.GetDateTime()
 
-    # create the output directory for the session
+    # create the output directory structure for the session
     if not os.path.exists("sessions"):
         os.mkdir("sessions")
     output_dir = "sessions/session_" + date + "_" + start_time_file
     os.mkdir(output_dir)
 
-    # create instrument and command filenames
-    inst_filename = output_dir + "/" + instrument + "_" + date + "_" + start_time_file + ".txt"
-    cmd_filename = output_dir + "/" + "Commands_" + date + "_" + start_time_file + ".txt"
+    # create a directory for individual TM messages
+    tm_dir = output_dir + '/TM'
+    os.mkdir(tm_dir)
+
+    # create instrument output and command filenames
+    inst_filename = output_dir + "/" + instrument + "_DBG_" + date + "_" + start_time_file + ".txt"
+    xml_filename  = output_dir + "/" + instrument + "_XML_" + date + "_" + start_time_file + ".txt"
+    cmd_filename  = output_dir + "/" + instrument + "_CMD_" + date + "_" + start_time_file + ".txt"
 
     # create the files
     with open(inst_filename, "w") as inst:
-        inst.write(instrument + " Output: " + date + " at " + start_time + "\n\n")
+        inst.write(instrument + " Debug Messages: " + date + " at " + start_time + "\n\n")
+
+    with open(xml_filename, "w") as inst:
+        inst.write(instrument + " XML Messages: " + date + " at " + start_time + "\n\n")
 
     with open(cmd_filename, "w") as inst:
         inst.write(instrument + " Commands: " + date + " at " + start_time + "\n\n")
@@ -76,7 +83,8 @@ def main():
     OBC_GUI.StartOutputWindow()
 
     # start listening for instrument messages over serial
-    threading.Thread(target=OBC_Parser.ReadInstrument, args=(inst_queue,xml_queue,port,inst_filename)).start()
+    threading.Thread(target=OBC_Parser.ReadInstrument,
+        args=(inst_queue,xml_queue,port,inst_filename,xml_filename,tm_dir,instrument,)).start()
 
     while True:
         # run command GUI

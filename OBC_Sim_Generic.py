@@ -82,8 +82,8 @@ def sendGPS(zenith, filename, port):
     date.text = datetime.today().strftime('%Y/%m/%d')
 
     time = ET.SubElement(XML_GPS,'Time')
-    #time.text = datetime.today().strftime('%H:%M:%S')
-    time.text = '11:59:00'
+    time.text = datetime.today().strftime('%H:%M:%S')
+    #time.text = '11:59:00'
 
     lon = ET.SubElement(XML_GPS,'Lon')
     lon.text = '-105.000000'

@@ -77,7 +77,7 @@ def InstWindowPrint(message):
     global output_window
 
     if -1 != message.find('ERR: '):
-        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='red')
+        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, background_color='red', end="")
     else:
         output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
@@ -86,9 +86,9 @@ def XMLWindowPrint(message):
     global output_window
 
     if -1 != message.find('TM') and -1 != message.find('CRIT'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='red')
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="", background_color='orange')
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='orange', end="")
     else:
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
