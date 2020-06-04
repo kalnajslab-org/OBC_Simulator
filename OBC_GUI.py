@@ -71,10 +71,9 @@ def WelcomeWindow():
 def StartOutputWindow():
     global output_window
 
-    instrument_output = [[sg.Text('Debug Output:')],
-                         [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25))],
-                         [sg.Text('XML Output:')],
-                         [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
+    instrument_output = [[sg.Text('Debug Output:'), sg.Text('XML Output:')],
+                         [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25)),
+                          sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
 

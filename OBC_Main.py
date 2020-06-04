@@ -99,15 +99,17 @@ def main():
         if not cmd_queue.empty():
             cmd = cmd_queue.get()
             if auto_ack:
+                time, millis = OBC_Sim_Generic.GetTime()
+                timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
                     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint('Sent TMAck')
+                    OBC_GUI.DebugPrint(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
                     OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint('Sent SAck')
+                    OBC_GUI.DebugPrint(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
                     OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint('Sent RAAck')
+                    OBC_GUI.DebugPrint(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.DebugPrint('Unknown command', True)
 
