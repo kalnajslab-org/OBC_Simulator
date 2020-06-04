@@ -35,11 +35,13 @@ def WelcomeWindow():
                        [sg.Radio('RACHUTS','inst_radio',True), sg.Radio('FLOATS','inst_radio'), sg.Radio('LPC','inst_radio')],
                        [sg.Text('Choose a port:')],
                        [sg.InputText('COM3')],
+                       [sg.Text('Automatically respond with ACKs?')],
+                       [sg.Radio('Yes','ack_radio',True), sg.Radio('No','ack_radio')],
                        [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
                         sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI configurator
-    window = sg.Window('Configuration', config_selector)
+    window = sg.Window('Welcome', config_selector)
     event, values = window.read()
     window.close()
 
@@ -55,11 +57,15 @@ def WelcomeWindow():
     else:
         inst = 'LPC'
     port = values[3]
+    if values[4]:
+        auto_ack = True
+    else:
+        auto_ack = False
 
     sg.Print("Instrument:", inst)
     sg.Print("Port:", port)
 
-    return inst, port
+    return inst, port, auto_ack
 
 
 def StartOutputWindow():
@@ -91,6 +97,13 @@ def XMLWindowPrint(message):
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='orange', end="")
     else:
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
+
+
+def DebugPrint(message, error=False):
+    if not error:
+        sg.Print(message)
+    else:
+        sg.Print(message, background_color='red')
 
 
 def DisplayMessageSelection():

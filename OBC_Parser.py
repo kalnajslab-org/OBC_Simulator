@@ -16,6 +16,7 @@ inst_filename = ''
 xml_filename = ''
 inst_queue = None
 xml_queue = None
+cmd_queue = None
 tm_dir = ''
 instrument = ''
 
@@ -61,6 +62,13 @@ def HandleXMLMessage(first_line):
         tm_length = parse.search('<Length>{}</Length>', message)
         display = 'TM (' + state_flag[0] + ', len=' + tm_length[0] + '): ' + state_mess[0] + '\n'
         WriteTMFile(message, binary_section)
+        cmd_queue.put('TMAck')
+    elif 'S' == xml_top[0]:
+        cmd_queue.put('SAck')
+        display = xml_top[0] + '\n'
+    elif 'RA' == xml_top[0]:
+        cmd_queue.put('RAAck')
+        display = xml_top[0] + '\n'
     else:
         display = xml_top[0] + '\n'
 
@@ -88,8 +96,8 @@ def WriteTMFile(message, binary):
 
 
 # this function is run as a thread from OBC_Main
-def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_filename_in, tm_dir_in, inst_in):
-    global port, inst_filename, xml_filename, inst_queue, xml_queue, tm_dir, instrument
+def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_filename_in, tm_dir_in, inst_in, cmd_queue_in):
+    global port, inst_filename, xml_filename, inst_queue, xml_queue, tm_dir, instrument, cmd_queue
 
     # assign globals
     port = port_in
@@ -99,6 +107,7 @@ def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_f
     xml_queue = xml_queue_in
     tm_dir = tm_dir_in
     instrument = inst_in
+    cmd_queue = cmd_queue_in
 
     # as long as the port is open, parse no messages
     while port:

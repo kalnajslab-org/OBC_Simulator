@@ -9,7 +9,7 @@ Created: May 2020
 '''
 
 # modules
-import OBC_GUI, OBC_Parser
+import OBC_GUI, OBC_Parser, OBC_Sim_Generic
 
 # libraries
 import threading, serial, queue, time, datetime, os
@@ -60,9 +60,10 @@ def main():
     # create queues for instrument messages
     inst_queue = queue.Queue()
     xml_queue = queue.Queue()
+    cmd_queue = queue.Queue()
 
     # get basic information
-    instrument, port_name = OBC_GUI.WelcomeWindow()
+    instrument, port_name, auto_ack = OBC_GUI.WelcomeWindow()
 
     # attempt to open the serial port
     try:
@@ -84,17 +85,32 @@ def main():
 
     # start listening for instrument messages over serial
     threading.Thread(target=OBC_Parser.ReadInstrument,
-        args=(inst_queue,xml_queue,port,inst_filename,xml_filename,tm_dir,instrument,)).start()
+        args=(inst_queue,xml_queue,port,inst_filename,xml_filename,tm_dir,instrument,cmd_queue)).start()
 
     while True:
         # run command GUI
         OBC_GUI.RunCommands()
 
-        # print instrument messages as they arrive
+        # handle instrument queues
         if not inst_queue.empty():
             OBC_GUI.InstWindowPrint(inst_queue.get())
         if not xml_queue.empty():
             OBC_GUI.XMLWindowPrint(xml_queue.get())
+        if not cmd_queue.empty():
+            cmd = cmd_queue.get()
+            if auto_ack:
+                if 'TMAck' == cmd:
+                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
+                    OBC_GUI.DebugPrint('Sent TMAck')
+                elif 'SAck' == cmd:
+                    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
+                    OBC_GUI.DebugPrint('Sent SAck')
+                elif 'RAAck' == cmd:
+                    OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
+                    OBC_GUI.DebugPrint('Sent RAAck')
+                else:
+                    OBC_GUI.DebugPrint('Unknown command', True)
+
 
 
 if (__name__ == '__main__'):
