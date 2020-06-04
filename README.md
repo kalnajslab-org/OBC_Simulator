@@ -10,23 +10,29 @@ The simulator uses the `PySimpleGUI` library to provide multiple input and outpu
 
 On startup, the user has the following options:
 
-![Welcome Window Screenshot](/Screenshots/WelcomeWindow.PNG)
+<img src="/Screenshots/WelcomeWindow.PNG" alt="Welcome Window Screenshot" width="300"/>
 
-Example ports: (Windows) `COM3`, (Linux/MacOS) `/dev/tty.usbserial`
+Example ports: (Windows) `COM3`, (Linux/MacOS) `/dev/ttyUSB0`
 
 If the user responds "Yes" to the "Automatically respond with ACKs?" prompt, then in response to `S`, `RA`, and `TM` XML messages, the simulator will send affirmative `SAck`, `RAAck`, and `TMAck` messages respectively. This is the default option. Otherwise, the user must manually send these commands.
 
 ### Sending Commands
 
-![Command Menu Screenshot](/Screenshots/CommandMenu.PNG)
+To send a command, the user must simply click the corresponding button in the Command Menu window and then complete any follow-up prompt windows as applicable.
+
+<img src="/Screenshots/CommandMenu.PNG" alt="Command Menu Screenshot" width="400"/>
 
 ### Simulator Log
 
-![Debug Window Screenshot](/Screenshots/DebugWindow.PNG)
+The commands that are sent and simulator decisions that are made are displayed in the Debug window. Note that certain commands are color-coded. The exact time of each command is prepended in square brackets.
+
+<img src="/Screenshots/DebugWindow.PNG" alt="Debug Window Screenshot" width="500"/>
 
 ### Viewing Instrument Output
 
-![Instrument Output Screenshot](/Screenshots/InstrumentOutput.PNG)
+The Instrument Output window has two scrolling text outputs: the instrument debug output, and the XML output. The instrument debug displays the StratoCore-specific debug messages, where errors are colored red. The XML output shows a succinct one-line message for each type of XML message received. The exact time of each message is prepended in square brackets.
+
+<img src="/Screenshots/InstrumentOutput.PNG" alt="Instrument Output Screenshot" width="900"/>
 
 ## Log File Structure
 
