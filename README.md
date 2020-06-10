@@ -30,7 +30,7 @@ If the user responds "Yes" to the "Automatically respond with ACKs?" prompt, the
 
 ## Log File Structure
 
-Each time an OBC Simulator session is successfully started, a directory under the `sessions/` directory is created. Each session's directory will be named according to the date: `session_DD-Mmm-YY_HH-MM-SS/`.
+Each time an OBC Simulator session is successfully started, a directory under the `sessions/` directory is created. Each session's directory will be named according to the date and instrument: `INST_DD-Mmm-YY_HH-MM-SS/`.
 
 ### Session Contents
 
@@ -46,14 +46,14 @@ Each time an OBC Simulator session is successfully started, a directory under th
 
 ```
 sessions/
-|---session_04-Jun-20_12-04-32/
+|---RACHUTS_04-Jun-20_12-04-32/
 |   |   RACHUTS_CMD_04-Jun-20_12-04-32.txt
 |   |   RACHUTS_DBG_04-Jun-20_12-04-32.txt
 |   |   RACHUTS_XML_04-Jun-20_12-04-32.txt
 |   |---TM/
 |       |    TM_04-Jun-20_12-04-37.RACHUTS.dat
 |       |    TM_04-Jun-20_12-04-43.RACHUTS.dat
-|---session_05-Jun-20_13-07-32/
+|---LPC_05-Jun-20_13-07-32/
 |   |   LPC_CMD_05-Jun-20_13-07-32.txt
 |   |   LPC_DBG_05-Jun-20_13-07-32.txt
 |   |   LPC_XML_05-Jun-20_13-07-32.txt

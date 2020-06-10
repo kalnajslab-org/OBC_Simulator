@@ -31,7 +31,7 @@ def FileSetup():
     # create the output directory structure for the session
     if not os.path.exists("sessions"):
         os.mkdir("sessions")
-    output_dir = "sessions/session_" + date + "_" + start_time_file
+    output_dir = "sessions/" + instrument + "_" + date + "_" + start_time_file
     os.mkdir(output_dir)
 
     # create a directory for individual TM messages
