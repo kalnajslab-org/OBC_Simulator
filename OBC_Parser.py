@@ -52,7 +52,7 @@ def HandleXMLMessage(first_line):
     message = first_line + str(port.read_until(b'</CRC>\n'), 'ascii')
 
     # parse out the message type
-    xml_top = parse.parse('<{}>', first_line)
+    xml_top = parse.parse('<{}>', first_line.strip())
 
     # if TM, get all the info
     if 'TM' == xml_top[0]:
@@ -112,6 +112,7 @@ def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_f
     # as long as the port is open, parse no messages
     while port:
         new_line = port.readline()
+        print(f'*{new_line}*')
 
         if (-1 != new_line.find(b'<')):
             HandleXMLMessage(str(new_line,'ascii'))

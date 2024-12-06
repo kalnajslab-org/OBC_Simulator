@@ -28,13 +28,13 @@ cmd_filename = ''
 instrument = ''
 
 
-def WelcomeWindow():
+def WelcomeWindow(comm_port: str):
     sg.theme('Dark')
 
     config_selector = [[sg.Text('Choose an instrument:')],
-                       [sg.Radio('RACHUTS','inst_radio',True), sg.Radio('FLOATS','inst_radio'), sg.Radio('LPC','inst_radio')],
+                       [sg.Radio('RATS','inst_radio',True), sg.Radio('LPC','inst_radio'), sg.Radio('RACHUTS','inst_radio'), sg.Radio('FLOATS','inst_radio')],
                        [sg.Text('Choose a port:')],
-                       [sg.InputText('COM3')],
+                       [sg.InputText(comm_port)],
                        [sg.Text('Automatically respond with ACKs?')],
                        [sg.Radio('Yes','ack_radio',True), sg.Radio('No','ack_radio')],
                        [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
@@ -51,13 +51,17 @@ def WelcomeWindow():
 
     # assign the outputs
     if values[0]:
-        inst = 'RACHUTS'
-    elif values[1]:
-        inst = 'FLOATS'
-    else:
+        inst = 'RATS'
+    if values[1]:
         inst = 'LPC'
-    port = values[3]
-    if values[4]:
+    elif values[2]:
+        inst = 'RACHUTS'
+    elif values[3]:
+        inst = 'FLOATS'
+
+    port = values[4]
+
+    if values[5]:
         auto_ack = True
     else:
         auto_ack = False

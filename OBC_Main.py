@@ -10,6 +10,7 @@ Created: May 2020
 
 # modules
 import OBC_GUI, OBC_Parser, OBC_Sim_Generic
+import argparse
 
 # libraries
 import threading, serial, queue, time, datetime, os
@@ -54,8 +55,19 @@ def FileSetup():
         inst.write(instrument + " Commands: " + date + " at " + start_time + "\n\n")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog='OBC_Simulator',
+        description='Provides basic simulation of the Zephyr command link',
+        epilog='')
+    parser.add_argument('-s', '--serial', help='Serial port for comms', type=str,action='store', default='')
+    args = parser.parse_args()
+    return args
+
 def main():
     global instrument
+
+    args = parse_args()
 
     # create queues for instrument messages
     inst_queue = queue.Queue()
@@ -63,7 +75,7 @@ def main():
     cmd_queue = queue.Queue()
 
     # get basic information
-    instrument, port_name, auto_ack = OBC_GUI.WelcomeWindow()
+    instrument, port_name, auto_ack = OBC_GUI.WelcomeWindow(comm_port=args.serial)
 
     # attempt to open the serial port
     try:
