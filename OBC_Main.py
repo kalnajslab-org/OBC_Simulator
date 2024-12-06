@@ -68,8 +68,8 @@ def main():
     # attempt to open the serial port
     try:
         port = serial.Serial(port_name, 115200)
-    except:
-        print("Error opening serial port")
+    except Exception as e:
+        print("Error opening serial port", e)
         exit()
 
     # set up the files and structure
