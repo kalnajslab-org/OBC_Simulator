@@ -109,6 +109,12 @@ def sendGPS(zenith, filename, port):
     sza = ET.SubElement(XML_GPS,'SZA')
     sza.text = str(zenith)
 
+    vbat = ET.SubElement(XML_GPS,'VBAT')
+    vbat.text = "16.2"
+
+    diff = ET.SubElement(XML_GPS,'Diff')
+    diff.text = "0.00453"
+
     quality = ET.SubElement(XML_GPS,'Quality')
     quality.text = '3'
 

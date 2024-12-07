@@ -9,7 +9,7 @@ Created: May 2020
 '''
 
 import PySimpleGUI as sg
-import os, threading
+import os
 import OBC_Sim_Generic
 
 # message type globals
@@ -75,9 +75,10 @@ def WelcomeWindow(comm_port: str):
 def StartOutputWindow():
     global output_window
 
-    instrument_output = [[sg.Text('Debug Output:'), sg.Text('XML Output:')],
-                         [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25)),
-                          sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(80,25))]]
+    instrument_output = [
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25))]]),
+         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,25))]])]
+    ]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
 

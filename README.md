@@ -4,7 +4,8 @@ This repository contains a platform-independent, Python-based simulator for the 
 
 ## Dependencies
 
-On MacOS at least, as of *Ventura*, I have to run Python 3.10, and `brew install python-tk@3.10`.
+On MacOS, at least as of *Ventura*, it was a struggle to get PySimpleGUI working.
+I have to run using Python 3.10, and `brew install python-tk@3.10`.
 
 See *requirements.txt* for python modules.
 

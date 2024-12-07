@@ -35,7 +35,7 @@ def GetDateTime():
     return date, curr_time, curr_time_file, milliseconds
 
 
-def HandleDebugMessage(message):
+def HandleStratoLogMessage(message):
     message = message.rstrip() + '\n'
 
     # formulate the time
@@ -112,4 +112,4 @@ def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_f
             HandleXMLMessage(str(new_line,'ascii'))
             pass
         else:
-            HandleDebugMessage(str(new_line,'ascii'))
+            HandleStratoLogMessage(str(new_line,'ascii'))
