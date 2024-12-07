@@ -2,6 +2,12 @@
 
 This repository contains a platform-independent, Python-based simulator for the Zephyr Onboard Computer (OBC) for the CNES Strateole 2 campaign. This simulator adds the ability to receive and display debug messages from LASP instruments over the same serial connection as the XML-based OBC communications.
 
+## Dependencies
+
+On MacOS at least, as of *Ventura*, I have to run Python 3.10, and `brew install python-tk@3.10`.
+
+See *requirements.txt* for python modules.
+
 ## Interface
 
 The simulator uses the `PySimpleGUI` library to provide multiple input and output windows that allow the user to interact with the instrument under test.

@@ -54,8 +54,8 @@ def HandleXMLMessage(first_line):
     message = first_line + str(port.read_until(b'</CRC>\n'), 'ascii')
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
-    tm_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
-    msg_type = list(tm_dict["MSG"].keys())[0]
+    msg_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
+    msg_type = list(msg_dict["MSG"].keys())[0]
     display = msg_type + '\n'
 
     # if TM, get all the info
@@ -63,7 +63,7 @@ def HandleXMLMessage(first_line):
         binary_section = port.read_until(b'END')
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
-        display = f'TM {" ".join([key+":"+value+" " for (key,value) in tm_dict["MSG"]["TM"].items()])}'
+        display = f'TM {" ".join([key+":"+value+" " for (key,value) in msg_dict["MSG"]["TM"].items()])}\n'
     elif 'S' == msg_type:
         cmd_queue.put('SAck')
     elif 'RA' == msg_type:
