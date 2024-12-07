@@ -8,7 +8,10 @@ Author: Alex St. Clair
 Created: June 2020
 '''
 
-import serial, queue, parse, datetime
+import serial
+import queue
+import datetime
+import xmltodict
 
 # globals
 port = None
@@ -47,30 +50,24 @@ def HandleDebugMessage(message):
     with open(inst_filename, 'a') as inst:
         inst.write(message)
 
-
 def HandleXMLMessage(first_line):
     message = first_line + str(port.read_until(b'</CRC>\n'), 'ascii')
-
-    # parse out the message type
-    xml_top = parse.parse('<{}>', first_line.strip())
+    # The message is not correct XML, since it doesn't have opening/closing
+    # tokens. Add some tokens so that it can be parsed.
+    tm_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
+    msg_type = list(tm_dict["MSG"].keys())[0]
+    display = msg_type + '\n'
 
     # if TM, get all the info
-    if 'TM' == xml_top[0]:
+    if 'TM' == msg_type:
         binary_section = port.read_until(b'END')
-        state_flag = parse.search('<StateFlag1>{}</StateFlag1>', message)
-        state_mess = parse.search('<StateMess1>{}</StateMess1>', message)
-        tm_length = parse.search('<Length>{}</Length>', message)
-        display = 'TM (' + state_flag[0] + ', len=' + tm_length[0] + '): ' + state_mess[0] + '\n'
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
-    elif 'S' == xml_top[0]:
+        display = f'TM {" ".join([key+":"+value+" " for (key,value) in tm_dict["MSG"]["TM"].items()])}'
+    elif 'S' == msg_type:
         cmd_queue.put('SAck')
-        display = xml_top[0] + '\n'
-    elif 'RA' == xml_top[0]:
+    elif 'RA' == msg_type:
         cmd_queue.put('RAAck')
-        display = xml_top[0] + '\n'
-    else:
-        display = xml_top[0] + '\n'
 
     # formulate the time
     _, time, _, milliseconds = GetDateTime()
@@ -84,7 +81,6 @@ def HandleXMLMessage(first_line):
     with open(xml_filename, 'a') as xml:
         xml.write(display)
 
-
 def WriteTMFile(message, binary):
     date, _, time, _ = GetDateTime()
 
@@ -93,7 +89,6 @@ def WriteTMFile(message, binary):
     with open(filename, 'wb') as tm_file:
         tm_file.write(message.encode())
         tm_file.write(binary)
-
 
 # this function is run as a thread from OBC_Main
 def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_filename_in, tm_dir_in, inst_in, cmd_queue_in):
@@ -112,7 +107,6 @@ def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_f
     # as long as the port is open, parse no messages
     while port:
         new_line = port.readline()
-        print(f'*{new_line}*')
 
         if (-1 != new_line.find(b'<')):
             HandleXMLMessage(str(new_line,'ascii'))
