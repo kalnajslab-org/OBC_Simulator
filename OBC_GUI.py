@@ -78,7 +78,7 @@ def StartOutputWindow():
     font = ("Courier", 10)
     instrument_output = [
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25),font=font)]]),
-         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,25),font=font)]])]
+         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(180,25),font=font)]])]
     ]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
@@ -100,6 +100,8 @@ def XMLWindowPrint(message):
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='orange', end="")
+    elif -1 != message.find('TM'):
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='grey', end="")
     else:
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
