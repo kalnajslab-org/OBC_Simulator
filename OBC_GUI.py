@@ -75,9 +75,10 @@ def WelcomeWindow(comm_port: str):
 def StartOutputWindow():
     global output_window
 
+    font = ("Courier", 10)
     instrument_output = [
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25))]]),
-         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,25))]])]
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25),font=font)]]),
+         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,25),font=font)]])]
     ]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)

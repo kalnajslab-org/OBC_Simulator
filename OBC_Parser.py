@@ -56,14 +56,13 @@ def HandleXMLMessage(first_line):
     # tokens. Add some tokens so that it can be parsed.
     msg_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
     msg_type = list(msg_dict["MSG"].keys())[0]
-    display = msg_type + '\n'
+    display = f'{msg_type:7s} {" ".join([key+":"+value+" " for (key,value) in msg_dict["MSG"][msg_type].items()])}\n'
 
-    # if TM, get all the info
+    # if TM, save payload
     if 'TM' == msg_type:
         binary_section = port.read_until(b'END')
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
-        display = f'TM {" ".join([key+":"+value+" " for (key,value) in msg_dict["MSG"]["TM"].items()])}\n'
     elif 'S' == msg_type:
         cmd_queue.put('SAck')
     elif 'RA' == msg_type:
