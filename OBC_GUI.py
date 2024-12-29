@@ -296,7 +296,7 @@ def RAAckMessage():
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending RA ack")
-    OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
+    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
 
 
 def TMAckMessage():

@@ -198,7 +198,7 @@ def sendSAck(instrument, ACK, filename, port):
     return output
 
 
-def sendRAAck(ACK, filename, port):
+def sendRAAck(instrument, ACK, filename, port):
 
     XML_RAAck = ET.Element('RAAck')
 
@@ -206,7 +206,7 @@ def sendRAAck(ACK, filename, port):
     msg_id.text = '123'
 
     inst_id = ET.SubElement(XML_RAAck,'Inst')
-    inst_id.text = 'RACHUTS'
+    inst_id.text = instrument
 
     ack = ET.SubElement(XML_RAAck, 'Ack')
     ack.text = ACK

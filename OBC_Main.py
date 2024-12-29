@@ -120,7 +120,7 @@ def main():
                     OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
                     OBC_GUI.DebugPrint(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
-                    OBC_Sim_Generic.sendRAAck('ACK', cmd_filename, port)
+                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
                     OBC_GUI.DebugPrint(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.DebugPrint('Unknown command', True)
