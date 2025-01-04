@@ -177,7 +177,7 @@ def sendRAAck(ACK, port):
     port.write(output.encode()) 
     	
     with open(LogFile, mode='a') as output_file:
-        output_file.write("Sending RAAck\n")
+        output_file.write("Sent RAAck\n")
     
     print("Seding RAAck")
     return output

@@ -222,7 +222,7 @@ def sendRAAck(instrument, ACK, filename, port):
 
     with open(filename, mode='a') as output_file:
         output_file.write(timestring)
-        output_file.write("Sending RAAck\n")
+        output_file.write("Sent RAAck\n")
 
     return output
 
