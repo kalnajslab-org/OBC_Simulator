@@ -4,9 +4,6 @@ This repository contains a platform-independent, Python-based simulator for the 
 
 ## Dependencies
 
-On MacOS, at least as of *Ventura*, it was a struggle to get PySimpleGUI working.
-I have to run using Python 3.10, and `brew install python-tk@3.10`.
-
 See *requirements.txt* for python modules.
 
 ## Interface
@@ -19,7 +16,7 @@ On startup, the user has the following options:
 
 <img src="/Screenshots/WelcomeWindow.PNG" alt="Welcome Window Screenshot" width="300"/>
 
-Example ports: (Windows) `COM3`, (Linux/MacOS) `/dev/ttyUSB0`
+Example ports: (Windows) `COM3`, (Linux) `/dev/ttyUSB0`, (MacOS) `/dev/cu.usbmodem165659901`
 
 If the user responds "Yes" to the "Automatically respond with ACKs?" prompt, then in response to `S`, `RA`, and `TM` XML messages, the simulator will send affirmative `SAck`, `RAAck`, and `TMAck` messages respectively. This is the default option. Otherwise, the user must manually send these commands.
 

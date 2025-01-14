@@ -8,7 +8,7 @@ Author: Alex St. Clair
 Created: May 2020
 '''
 
-import PySimpleGUI as sg
+import PySimpleGUIQt as sg
 import os
 import OBC_Sim_Generic
 
@@ -27,22 +27,24 @@ port = ''
 cmd_filename = ''
 instrument = ''
 
+sg.set_options(font = ("Courier", 10))
 
 def WelcomeWindow(comm_port: str):
-    sg.theme('Dark')
+    sg.theme('SystemDefault')
 
     config_selector = [[sg.Text('Choose an instrument:')],
-                       [sg.Radio('RATS','inst_radio',True), sg.Radio('LPC','inst_radio'), sg.Radio('RACHUTS','inst_radio'), sg.Radio('FLOATS','inst_radio')],
+                       [sg.Radio('RATS',group_id=1,key='RATS',default=True), sg.Radio('LPC',group_id=1,key='LPC'), sg.Radio('RACHUTS',group_id=1,key='RACHUTS'), sg.Radio('FLOATS',group_id=1,key='FLOATS')],
                        [sg.Text('Choose a port:')],
-                       [sg.InputText(comm_port)],
+                       [sg.InputText(comm_port, key='COMMPORT', size=(20,1))],
                        [sg.Text('Automatically respond with ACKs?')],
-                       [sg.Radio('Yes','ack_radio',True), sg.Radio('No','ack_radio')],
+                       [sg.Radio('Yes',group_id=2,key='ACK',default=True), sg.Radio('No',group_id=2,key='NOACK')],
                        [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
                         sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI configurator
     window = sg.Window('Welcome', config_selector)
     event, values = window.read()
+    print('values', values)
     window.close()
 
     # quit the program if the window is closed or Exit selected
@@ -50,18 +52,18 @@ def WelcomeWindow(comm_port: str):
         CloseAndExit()
 
     # assign the outputs
-    if values[0]:
+    if values['RATS']:
         inst = 'RATS'
-    if values[1]:
+    if values['LPC']:
         inst = 'LPC'
-    elif values[2]:
+    elif values['RACHUTS']:
         inst = 'RACHUTS'
-    elif values[3]:
+    elif values['FLOATS']:
         inst = 'FLOATS'
 
-    port = values[4]
+    port = values['COMMPORT']
 
-    if values[5]:
+    if values['ACK']:
         auto_ack = True
     else:
         auto_ack = False
@@ -75,10 +77,9 @@ def WelcomeWindow(comm_port: str):
 def StartOutputWindow():
     global output_window
 
-    font = ("Courier", 10)
     instrument_output = [
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(80,25),font=font)]]),
-         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(180,25),font=font)]])]
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
+         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,30))]])]
     ]
 
     output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
@@ -97,11 +98,11 @@ def XMLWindowPrint(message):
     global output_window
 
     if -1 != message.find('TM') and -1 != message.find('CRIT'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='red', end="")
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='orange', end="")
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
     elif -1 != message.find('TM'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, background_color='grey', end="")
+        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='green', end="")
     else:
         output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
@@ -181,7 +182,7 @@ def WaitIMSelection():
 
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
-        sg.Print(timestring + "Setting mode:", event, background_color='blue')
+        sg.Print(timestring + "Setting mode:", event)
         OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, port)
 
     # go back to the message selector
@@ -275,7 +276,7 @@ def WaitTCSelection():
     if event in (None, 'Exit'):
         CloseAndExit()
     elif 'Cancel' != event:
-        sg.Print(timestring + "Sending TC:", values[0], background_color='green')
+        sg.Print(timestring + "Sending TC:", values[0])
         OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, port)
 
     # go back to the message selector

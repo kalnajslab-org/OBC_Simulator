@@ -1,3 +1,4 @@
 pyserial
 xmltodict
-PySimpleGUI
+pyside6
+PySimpleGUIQt
