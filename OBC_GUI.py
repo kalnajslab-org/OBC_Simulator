@@ -89,7 +89,7 @@ def InstWindowPrint(message):
     global output_window
 
     if -1 != message.find('ERR: '):
-        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, background_color='red', end="")
+        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     else:
         output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
@@ -242,7 +242,7 @@ def SWMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
-    sg.Print(timestring + "Sending shutdown warning", background_color='red')
+    sg.Print(timestring + "Sending shutdown warning", text_color='red')
     OBC_Sim_Generic.sendSW(instrument, cmd_filename, port)
 
 
@@ -361,7 +361,7 @@ def RunCommands():
             new_window = True
 
         else:
-            sg.Print("Unknown new window requested", background_color='orange')
+            sg.Print("Unknown new window requested", text_color='orange')
             current_message = 'waiting'
             new_window = True
 
@@ -379,6 +379,6 @@ def RunCommands():
             WaitTCSelection()
 
         else:
-            sg.Print("Bad window to wait on", background_color='orange')
+            sg.Print("Bad window to wait on", text_color='orange')
             current_message = 'waiting'
             new_window = True
