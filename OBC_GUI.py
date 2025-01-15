@@ -8,29 +8,57 @@ Author: Alex St. Clair
 Created: May 2020
 '''
 
-import PySimpleGUIQt as sg
+''' 
+This module provides a GUI for the OBC simulator. 
+
+ConfigWindow() is called to prompt for configuration.
+
+MainWindow() is called to create the main window.
+It contains buttons for each type of message that can be sent, 
+and two columns for log messages and Zephyr messages. 
+The buttons either send a message  directly (e.g. TMAck), 
+or open a popup window (e.g. IM) to configure and send a message.
+
+LogAddMsg() and ZephyrAddMsg() are called to add messages to the 
+log and Zephyr message columns.
+
+The main window is referenced by the global variable: main_window.
+
+In order to handle UI events and received messages, a polling mechanism is used.
+RunCommands() is called by the program main loop, and handles UI activities.
+Popup windows are created by ShowIMPopup(), WaitIMPopup(), etc.
+The popup windows are all assigned to the global variable: popup_window.
+
+WaitMessageSelection() is called from RunCommands() to check for button presses.
+This function calls both main_window.read() and popup_window.read() to check 
+for button press events.
+'''
+
+# modules
 import os
+import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
-# message type globals
+# message types and instrument modes
 ZephyrMessageTypes = ['IM', 'GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
-ZephyrModes = ['SB', 'FL', 'LP', 'SA', 'EF']
+ZephyrInstModes = ['SB', 'FL', 'LP', 'SA', 'EF']
 
 # global window objects
-input_window = None
-output_window = None
+popup_window = None
+main_window = None
 current_message = 'waiting'
 new_window = True
 
-# string globals
+# global configuration variables
 port = ''
 cmd_filename = ''
 instrument = ''
 
-sg.set_options(font = ("Courier", 10))
+# set the overall look of the GUI
+sg.theme('SystemDefault')
+sg.set_options(font = ("Helvetica", 12))
 
-def WelcomeWindow(comm_port: str):
-    sg.theme('SystemDefault')
+def ConfigWindow(comm_port: str):
 
     config_selector = [[sg.Text('Choose an instrument:')],
                        [sg.Radio('RATS',group_id=1,key='RATS',default=True), sg.Radio('LPC',group_id=1,key='LPC'), sg.Radio('RACHUTS',group_id=1,key='RACHUTS'), sg.Radio('FLOATS',group_id=1,key='FLOATS')],
@@ -42,9 +70,8 @@ def WelcomeWindow(comm_port: str):
                         sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI configurator
-    window = sg.Window('Welcome', config_selector)
+    window = sg.Window('Welcome', config_selector, element_padding = (2,2))
     event, values = window.read()
-    print('values', values)
     window.close()
 
     # quit the program if the window is closed or Exit selected
@@ -73,39 +100,45 @@ def WelcomeWindow(comm_port: str):
 
     return inst, port, auto_ack
 
+def MainWindow():
+    '''Create the main window
+    
+    It has control buttons at the top and two columns for log messages and Zephyr messages
+    '''
+    global main_window
 
-def StartOutputWindow():
-    global output_window
+    # Command buttons at the top of the window
+    buttons = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
+    buttons.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
 
-    instrument_output = [
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-inst-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
-         sg.Column([[sg.Text('XML Messages'           )], [sg.MLine(key='-xml-'+sg.WRITE_ONLY_KEY, size=(120,30))]])]
+    # A columns for log messages and Zephyr messages
+    widgets = [
+        buttons,
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
+         sg.Column([[sg.Text('Zephyr Messages'           )], [sg.MLine(key='-zephyr-'+sg.WRITE_ONLY_KEY, size=(100,30))]])]
     ]
 
-    output_window = sg.Window('Instrument Output', instrument_output, finalize=True)
+    main_window = sg.Window(title=instrument, layout=widgets, location=(500, 100), finalize=True)
 
-
-def InstWindowPrint(message):
-    global output_window
+def AddLogMsg(message):
+    global main_window
 
     if -1 != message.find('ERR: '):
-        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
+        main_window['-log-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     else:
-        output_window['-inst-'+sg.WRITE_ONLY_KEY].print(message, end="")
+        main_window['-log-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
-
-def XMLWindowPrint(message):
-    global output_window
+def AddZephyrMsg(message):
+    global main_window
 
     if -1 != message.find('TM') and -1 != message.find('CRIT'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
+        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
+        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
     elif -1 != message.find('TM'):
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, text_color='green', end="")
+        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='green', end="")
     else:
-        output_window['-xml-'+sg.WRITE_ONLY_KEY].print(message, end="")
-
+        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 def DebugPrint(message, error=False):
     if not error:
@@ -113,42 +146,35 @@ def DebugPrint(message, error=False):
     else:
         sg.Print(message, background_color='red')
 
+def PollWindowEvents():
+    global popup_window, main_window, current_message, new_window
 
-def DisplayMessageSelection():
-    global input_window
+    input_event = None
+    if popup_window:
+        input_event, _ = popup_window.read(timeout=10)
 
-    message_selector = [[sg.Text('Select a message to send')],
-                        [],
-                        [sg.Text('-'  * 110)],
-                        [sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+    output_event = None
+    if main_window:
+        output_event, _ = main_window.read(timeout=10)
 
-    for msg_type in ZephyrMessageTypes:
-        message_selector[1].append(sg.Button(msg_type, size=(6,1)))
-
-    # GUI message selector
-    input_window = sg.Window('Command Menu', message_selector)
-
-
-def WaitMessageSelection():
-    global input_window, current_message, new_window
-
-    event, _ = input_window.read(timeout=10)
-
-    if '__TIMEOUT__' == event:
+    if (input_event in ('__TIMEOUT__', None))  and (output_event in ('__TIMEOUT__', None)):
         return
 
-    input_window.close()
-
-    # quit the program if the window is closed or Exit selected
-    if event in (None, 'Exit'):
+    if output_event in (None, 'Exit'):
         CloseAndExit()
+
+    if input_event: 
+        popup_window.close()
+        current_message = input_event
+        new_window = True
     else:
-        current_message = event
+        current_message = output_event
         new_window = True
 
+    return
 
-def DisplayIMSelection():
-    global input_window
+def ShowIMPopup():
+    global popup_window
 
     mode_selector = [[sg.Text('Select a mode')],
                      [],
@@ -156,22 +182,21 @@ def DisplayIMSelection():
                      [sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
                       sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
-    for mode in ZephyrModes:
+    for mode in ZephyrInstModes:
         mode_selector[1].append(sg.Button(mode, size=(6,1)))
 
     # GUI mode selector
-    input_window = sg.Window('Mode Message Configurator', mode_selector)
+    popup_window = sg.Window('Mode Message Configurator', mode_selector)
 
+def WaitIMPopup():
+    global popup_window, current_message, new_window
 
-def WaitIMSelection():
-    global input_window, current_message, new_window
-
-    event, _ = input_window.read(timeout=10)
+    event, _ = popup_window.read(timeout=10)
 
     if '__TIMEOUT__' == event:
         return
 
-    input_window.close()
+    popup_window.close()
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
@@ -189,9 +214,8 @@ def WaitIMSelection():
     current_message = 'waiting'
     new_window = True
 
-
-def DisplayGPSSelection():
-    global input_window
+def ShowGPSPopup():
+    global popup_window
 
     gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
                     [sg.InputText('120')],
@@ -200,13 +224,12 @@ def DisplayGPSSelection():
                      sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI GPS creator with SZA float validation
-    input_window = sg.Window('GPS Message Configurator', gps_selector)
+    popup_window = sg.Window('GPS Message Configurator', gps_selector)
 
+def WaitGPSPopup():
+    global popup_window, current_message, new_window
 
-def WaitGPSSelection():
-    global input_window, current_message, new_window
-
-    event, values = input_window.read(timeout=10)
+    event, values = popup_window.read(timeout=10)
 
     if '__TIMEOUT__' == event:
         return
@@ -221,7 +244,7 @@ def WaitGPSSelection():
             sg.popup('SZA must be a float')
             return
 
-    input_window.close()
+    popup_window.close()
 
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
@@ -237,17 +260,15 @@ def WaitGPSSelection():
     current_message = 'waiting'
     new_window = True
 
-
 def SWMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
-    sg.Print(timestring + "Sending shutdown warning", text_color='red')
+    sg.Print(timestring + "Sending shutdown warning")
     OBC_Sim_Generic.sendSW(instrument, cmd_filename, port)
 
-
-def DisplayTCSelection():
-    global input_window
+def ShowTCPopup():
+    global popup_window
 
     tc_selector = [[sg.Text('Input a telecommand:')],
                     [sg.InputText('1;')],
@@ -256,18 +277,17 @@ def DisplayTCSelection():
                      sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI TC creator
-    input_window = sg.Window('TC Creator', tc_selector)
+    popup_window = sg.Window('TC Creator', tc_selector)
 
+def WaitTCPopup():
+    global popup_window, current_message, new_window
 
-def WaitTCSelection():
-    global input_window, current_message, new_window
-
-    event, values = input_window.read(timeout=10)
+    event, values = popup_window.read(timeout=10)
 
     if '__TIMEOUT__' == event:
         return
 
-    input_window.close()
+    popup_window.close()
 
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
@@ -283,14 +303,12 @@ def WaitTCSelection():
     current_message = 'waiting'
     new_window = True
 
-
 def SAckMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
     OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
-
 
 def RAAckMessage():
     time, millis = OBC_Sim_Generic.GetTime()
@@ -299,7 +317,6 @@ def RAAckMessage():
     sg.Print(timestring + "Sent RAAck")
     OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
 
-
 def TMAckMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
@@ -307,33 +324,30 @@ def TMAckMessage():
     sg.Print(timestring + "Sending TM ack")
     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
 
-
 def CloseAndExit():
-    global output_window, input_window
+    global main_window, popup_window
 
-    if output_window != None:
-        output_window.close()
+    if main_window != None:
+        main_window.close()
 
-    if input_window != None:
-        input_window.close()
+    if popup_window != None:
+        popup_window.close()
 
     os._exit(0)
-
 
 def RunCommands():
     global new_window, current_message
 
     if new_window:
         if 'waiting' == current_message:
-            DisplayMessageSelection()
             new_window = False
 
         elif 'IM' == current_message:
-            DisplayIMSelection()
+            ShowIMPopup()
             new_window = False
 
         elif 'GPS' == current_message:
-            DisplayGPSSelection()
+            ShowGPSPopup()
             new_window = False
 
         elif 'SW' == current_message:
@@ -342,7 +356,7 @@ def RunCommands():
             new_window = True
 
         elif 'TC' == current_message:
-            DisplayTCSelection()
+            ShowTCPopup()
             new_window = False
 
         elif 'SAck' == current_message:
@@ -361,24 +375,24 @@ def RunCommands():
             new_window = True
 
         else:
-            sg.Print("Unknown new window requested", text_color='orange')
+            sg.Print("Unknown new window requested: "+str(current_message))
             current_message = 'waiting'
             new_window = True
 
     else:
         if 'waiting' == current_message:
-            WaitMessageSelection()
+            PollWindowEvents()
 
         elif 'IM' == current_message:
-            WaitIMSelection()
+            WaitIMPopup()
 
         elif 'GPS' == current_message:
-            WaitGPSSelection()
+            WaitGPSPopup()
 
         elif 'TC' == current_message:
-            WaitTCSelection()
+            WaitTCPopup()
 
         else:
-            sg.Print("Bad window to wait on", text_color='orange')
+            sg.Print("Bad window to wait on"+str(current_message))
             current_message = 'waiting'
             new_window = True

@@ -75,7 +75,7 @@ def main():
     cmd_queue = queue.Queue()
 
     # get basic information
-    instrument, port_name, auto_ack = OBC_GUI.WelcomeWindow(comm_port=args.serial)
+    instrument, port_name, auto_ack = OBC_GUI.ConfigWindow(comm_port=args.serial)
 
     # attempt to open the serial port
     try:
@@ -93,7 +93,7 @@ def main():
     OBC_GUI.instrument = instrument
 
     # start the instrument output window
-    OBC_GUI.StartOutputWindow()
+    OBC_GUI.MainWindow()
 
     # start listening for instrument messages over serial
     threading.Thread(target=OBC_Parser.ReadInstrument,
@@ -105,9 +105,9 @@ def main():
 
         # handle instrument queues
         if not inst_queue.empty():
-            OBC_GUI.InstWindowPrint(inst_queue.get())
+            OBC_GUI.AddLogMsg(inst_queue.get())
         if not xml_queue.empty():
-            OBC_GUI.XMLWindowPrint(xml_queue.get())
+            OBC_GUI.AddZephyrMsg(xml_queue.get())
         if not cmd_queue.empty():
             cmd = cmd_queue.get()
             if auto_ack:
