@@ -74,8 +74,13 @@ def main():
     xml_queue = queue.Queue()
     cmd_queue = queue.Queue()
 
-    # get basic information
-    instrument, port_name, auto_ack = OBC_GUI.ConfigWindow(comm_port=args.serial)
+    # get configuration
+    config = OBC_GUI.ConfigWindow(comm_port=args.serial)
+
+    # set global variables
+    instrument = config['inst']
+    port_name = config['serial']
+    auto_ack = config['auto_ack']
 
     # attempt to open the serial port
     try:
@@ -87,13 +92,8 @@ def main():
     # set up the files and structure
     FileSetup()
 
-    # register globals with the GUI module
-    OBC_GUI.cmd_filename = cmd_filename
-    OBC_GUI.port = port
-    OBC_GUI.instrument = instrument
-
     # start the instrument output window
-    OBC_GUI.MainWindow()
+    OBC_GUI.MainWindow(config, sport=port, cmd_fname=cmd_filename)
 
     # start listening for instrument messages over serial
     threading.Thread(target=OBC_Parser.ReadInstrument,
@@ -117,7 +117,7 @@ def main():
                     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
                     OBC_GUI.DebugPrint(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
+                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, port)
                     OBC_GUI.DebugPrint(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
                     OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)

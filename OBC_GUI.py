@@ -36,6 +36,7 @@ for button press events.
 
 # modules
 import os
+import serial
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
@@ -46,11 +47,11 @@ ZephyrInstModes = ['SB', 'FL', 'LP', 'SA', 'EF']
 # global window objects
 popup_window = None
 main_window = None
-current_message = 'waiting'
+current_action = 'waiting'
 new_window = True
 
 # global configuration variables
-port = ''
+serial_port = None
 cmd_filename = ''
 instrument = ''
 
@@ -58,12 +59,19 @@ instrument = ''
 sg.theme('SystemDefault')
 sg.set_options(font = ("Helvetica", 12))
 
-def ConfigWindow(comm_port: str):
+def ConfigWindow(comm_port: str)->dict:
+    '''Configuration window for the OBC simulator
+
+    A dictionary is returned with the following keys:
+    inst(str): the instrument type
+    serial(str): the serial port name connected to the instrument log port
+    auto_ack(bool): whether to automatically respond with ACKs
+    '''
 
     config_selector = [[sg.Text('Choose an instrument:')],
                        [sg.Radio('RATS',group_id=1,key='RATS',default=True), sg.Radio('LPC',group_id=1,key='LPC'), sg.Radio('RACHUTS',group_id=1,key='RACHUTS'), sg.Radio('FLOATS',group_id=1,key='FLOATS')],
                        [sg.Text('Choose a port:')],
-                       [sg.InputText(comm_port, key='COMMPORT', size=(20,1))],
+                       [sg.InputText(comm_port, key='SERIAL', size=(20,1))],
                        [sg.Text('Automatically respond with ACKs?')],
                        [sg.Radio('Yes',group_id=2,key='ACK',default=True), sg.Radio('No',group_id=2,key='NOACK')],
                        [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
@@ -78,39 +86,49 @@ def ConfigWindow(comm_port: str):
     if event in (None, 'Exit'):
         CloseAndExit()
 
+    config = {}
+    
     # assign the outputs
     if values['RATS']:
-        inst = 'RATS'
+        config['inst'] = 'RATS'
     if values['LPC']:
-        inst = 'LPC'
+        config['inst'] = 'LPC'
     elif values['RACHUTS']:
-        inst = 'RACHUTS'
+        config['inst'] = 'RACHUTS'
     elif values['FLOATS']:
-        inst = 'FLOATS'
+        config['inst'] = 'FLOATS'
 
-    port = values['COMMPORT']
+    config['serial'] = values['SERIAL']
 
     if values['ACK']:
-        auto_ack = True
+        config['auto_ack'] = True
     else:
-        auto_ack = False
+        config['auto_ack'] = False
 
-    sg.Print("Instrument:", inst)
-    sg.Print("Port:", port)
+    sg.Print("Instrument:", config['inst'])
+    sg.Print("Port:", config['serial'])
 
-    return inst, port, auto_ack
+    return config
 
-def MainWindow():
+def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
     '''Create the main window
     
     It has control buttons at the top and two columns for log messages and Zephyr messages
     '''
     global main_window
+    global serial_port
+    global instrument
+    global cmd_filename
+
+    instrument = config['inst']
+    serial_port = sport
+    cmd_filename = cmd_fname
 
     # Command buttons at the top of the window
     buttons = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
     buttons.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
-
+    buttons.append(sg.Stretch())
+    buttons.append(sg.Text("Log port: " + config['serial'], size=(30,1), justification='right'))
     # A columns for log messages and Zephyr messages
     widgets = [
         buttons,
@@ -147,28 +165,27 @@ def DebugPrint(message, error=False):
         sg.Print(message, background_color='red')
 
 def PollWindowEvents():
-    global popup_window, main_window, current_message, new_window
+    global popup_window, main_window, current_action, new_window
 
-    input_event = None
+    popup_window_event = None
     if popup_window:
-        input_event, _ = popup_window.read(timeout=10)
+        popup_window_event, _ = popup_window.read(timeout=10)
 
-    output_event, _ = main_window.read(timeout=10)
+    main_window_event, _ = main_window.read(timeout=10)
 
-    if output_event in (None, 'Exit'):
+    if main_window_event in (None, 'Exit'):
         CloseAndExit()
 
-    if (input_event in ('__TIMEOUT__', None))  and (output_event == '__TIMEOUT__'):
+    if (popup_window_event in ('__TIMEOUT__', None))  and (main_window_event == '__TIMEOUT__'):
         return
 
-
-    if input_event: 
+    if popup_window_event: 
         popup_window.close()
         popup_window = None
-        current_message = input_event
+        current_action = popup_window_event
         new_window = True
     else:
-        current_message = output_event
+        current_action = main_window_event
         new_window = True
 
     return
@@ -188,7 +205,7 @@ def ShowIMPopup():
     popup_window = sg.Window('Mode Message Configurator', mode_selector)
 
 def WaitIMPopup():
-    global popup_window, current_message, new_window
+    global popup_window, current_action, new_window
 
     event, _ = popup_window.read(timeout=10)
 
@@ -204,10 +221,10 @@ def WaitIMPopup():
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
         sg.Print(timestring + "Setting mode:", event)
-        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, port)
+        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, serial_port)
 
     # go back to the message selector
-    current_message = 'waiting'
+    current_action = 'waiting'
     new_window = True
 
 def ShowGPSPopup():
@@ -222,7 +239,7 @@ def ShowGPSPopup():
     popup_window = sg.Window('GPS Message Configurator', gps_selector)
 
 def WaitGPSPopup():
-    global popup_window, current_message, new_window
+    global popup_window, current_action, new_window
 
     event, values = popup_window.read(timeout=10)
 
@@ -247,10 +264,10 @@ def WaitGPSPopup():
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
-        OBC_Sim_Generic.sendGPS(sza, cmd_filename, port)
+        OBC_Sim_Generic.sendGPS(sza, cmd_filename, serial_port)
 
     # go back to the message selector
-    current_message = 'waiting'
+    current_action = 'waiting'
     new_window = True
 
 def SWMessage():
@@ -258,7 +275,7 @@ def SWMessage():
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending shutdown warning")
-    OBC_Sim_Generic.sendSW(instrument, cmd_filename, port)
+    OBC_Sim_Generic.sendSW(instrument, cmd_filename, serial_port)
 
 def ShowTCPopup():
     global popup_window
@@ -272,7 +289,7 @@ def ShowTCPopup():
     popup_window = sg.Window('TC Creator', tc_selector)
 
 def WaitTCPopup():
-    global popup_window, current_message, new_window
+    global popup_window, current_action, new_window
 
     event, values = popup_window.read(timeout=10)
 
@@ -287,10 +304,10 @@ def WaitTCPopup():
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending TC:", values[0])
-        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, port)
+        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, serial_port)
 
     # go back to the message selector
-    current_message = 'waiting'
+    current_action = 'waiting'
     new_window = True
 
 def SAckMessage():
@@ -298,21 +315,21 @@ def SAckMessage():
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
-    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, port)
+    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, serial_port)
 
 def RAAckMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
-    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
+    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, serial_port)
 
 def TMAckMessage():
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
-    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
+    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, serial_port)
 
 def CloseAndExit():
     global main_window, popup_window
@@ -327,63 +344,63 @@ def CloseAndExit():
     os._exit(0)
 
 def RunCommands():
-    global new_window, current_message
+    global new_window, current_action
 
     if new_window:
-        if 'waiting' == current_message:
+        if 'waiting' == current_action:
             new_window = False
 
-        elif 'IM' == current_message:
+        elif 'IM' == current_action:
             ShowIMPopup()
             new_window = False
 
-        elif 'GPS' == current_message:
+        elif 'GPS' == current_action:
             ShowGPSPopup()
             new_window = False
 
-        elif 'SW' == current_message:
+        elif 'SW' == current_action:
             SWMessage()
-            current_message = 'waiting'
+            current_action = 'waiting'
             new_window = True
 
-        elif 'TC' == current_message:
+        elif 'TC' == current_action:
             ShowTCPopup()
             new_window = False
 
-        elif 'SAck' == current_message:
+        elif 'SAck' == current_action:
             SAckMessage()
-            current_message = 'waiting'
+            current_action = 'waiting'
             new_window = True
 
-        elif 'RAAck' == current_message:
+        elif 'RAAck' == current_action:
             RAAckMessage()
-            current_message = 'waiting'
+            current_action = 'waiting'
             new_window = True
 
-        elif 'TMAck' == current_message:
+        elif 'TMAck' == current_action:
             TMAckMessage()
-            current_message = 'waiting'
+            current_action = 'waiting'
             new_window = True
 
         else:
-            sg.Print("Unknown new window requested: "+str(current_message))
-            current_message = 'waiting'
+            sg.Print("Unknown new window requested: "+str(current_action))
+            current_action = 'waiting'
             new_window = True
 
     else:
-        if 'waiting' == current_message:
+        if 'waiting' == current_action:
             PollWindowEvents()
 
-        elif 'IM' == current_message:
+        elif 'IM' == current_action:
             WaitIMPopup()
 
-        elif 'GPS' == current_message:
+        elif 'GPS' == current_action:
             WaitGPSPopup()
 
-        elif 'TC' == current_message:
+        elif 'TC' == current_action:
             WaitTCPopup()
 
         else:
-            sg.Print("Bad window to wait on"+str(current_message))
-            current_message = 'waiting'
+            sg.Print("Bad window to wait on"+str(current_action))
+            current_action = 'waiting'
             new_window = True
