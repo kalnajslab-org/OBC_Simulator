@@ -66,11 +66,11 @@ def ConfigWindow(comm_port: str):
                        [sg.InputText(comm_port, key='COMMPORT', size=(20,1))],
                        [sg.Text('Automatically respond with ACKs?')],
                        [sg.Radio('Yes',group_id=2,key='ACK',default=True), sg.Radio('No',group_id=2,key='NOACK')],
-                       [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
+                       [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
                         sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
     # GUI configurator
-    window = sg.Window('Welcome', config_selector, element_padding = (2,2))
+    window = sg.Window('Configure', config_selector)
     event, values = window.read()
     window.close()
 
@@ -153,18 +153,18 @@ def PollWindowEvents():
     if popup_window:
         input_event, _ = popup_window.read(timeout=10)
 
-    output_event = None
-    if main_window:
-        output_event, _ = main_window.read(timeout=10)
-
-    if (input_event in ('__TIMEOUT__', None))  and (output_event in ('__TIMEOUT__', None)):
-        return
+    output_event, _ = main_window.read(timeout=10)
 
     if output_event in (None, 'Exit'):
         CloseAndExit()
 
+    if (input_event in ('__TIMEOUT__', None))  and (output_event == '__TIMEOUT__'):
+        return
+
+
     if input_event: 
         popup_window.close()
+        popup_window = None
         current_message = input_event
         new_window = True
     else:
@@ -179,8 +179,7 @@ def ShowIMPopup():
     mode_selector = [[sg.Text('Select a mode')],
                      [],
                      [sg.Text('-'  * 110)],
-                     [sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
-                      sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+                     [sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
 
     for mode in ZephyrInstModes:
         mode_selector[1].append(sg.Button(mode, size=(6,1)))
@@ -197,10 +196,7 @@ def WaitIMPopup():
         return
 
     popup_window.close()
-
-    # quit the program if the window is closed or Exit selected
-    if event in (None, 'Exit'):
-        CloseAndExit()
+    popup_window = None
 
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
@@ -220,8 +216,7 @@ def ShowGPSPopup():
     gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
                     [sg.InputText('120')],
                     [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-                     sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
-                     sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+                     sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
 
     # GUI GPS creator with SZA float validation
     popup_window = sg.Window('GPS Message Configurator', gps_selector)
@@ -245,14 +240,12 @@ def WaitGPSPopup():
             return
 
     popup_window.close()
+    popup_window = None
 
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
-    # quit the program if the window is closed or Exit selected
-    if event in (None, 'Exit'):
-        CloseAndExit()
-    elif 'Cancel' != event:
+    if 'Submit' == event:
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
         OBC_Sim_Generic.sendGPS(sza, cmd_filename, port)
 
@@ -273,8 +266,7 @@ def ShowTCPopup():
     tc_selector = [[sg.Text('Input a telecommand:')],
                     [sg.InputText('1;')],
                     [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-                     sg.Button('Cancel', size=(8,1), button_color=('white','orange')),
-                     sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+                     sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
 
     # GUI TC creator
     popup_window = sg.Window('TC Creator', tc_selector)
@@ -288,14 +280,12 @@ def WaitTCPopup():
         return
 
     popup_window.close()
+    popup_window = None
 
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
-    # quit the program if the window is closed or Exit selected
-    if event in (None, 'Exit'):
-        CloseAndExit()
-    elif 'Cancel' != event:
+    if 'Submit' == event:
         sg.Print(timestring + "Sending TC:", values[0])
         OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, port)
 
@@ -332,6 +322,7 @@ def CloseAndExit():
 
     if popup_window != None:
         popup_window.close()
+        popup_window = None
 
     os._exit(0)
 
