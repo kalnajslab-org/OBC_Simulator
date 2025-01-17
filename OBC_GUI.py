@@ -37,6 +37,7 @@ for button press events.
 # modules
 import os
 import serial
+import glob
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
@@ -68,10 +69,19 @@ def ConfigWindow(comm_port: str)->dict:
     auto_ack(bool): whether to automatically respond with ACKs
     '''
 
+    ports = glob.glob('/dev/cu.*')
+    ports.remove('/dev/cu.Bluetooth-Incoming-Port')
+    radio_zephyr_ports = [sg.Radio(p, group_id="radio_zephyr_ports", key="zephyr_"+p) for p in ports]
+    radio_log_ports = [sg.Radio(p, group_id="radio_log_ports", key="log_"+p) for p in ports]
+
     config_selector = [[sg.Text('Choose an instrument:')],
                        [sg.Radio('RATS',group_id=1,key='RATS',default=True), sg.Radio('LPC',group_id=1,key='LPC'), sg.Radio('RACHUTS',group_id=1,key='RACHUTS'), sg.Radio('FLOATS',group_id=1,key='FLOATS')],
                        [sg.Text('Choose a port:')],
                        [sg.InputText(comm_port, key='SERIAL', size=(20,1))],
+                       [sg.Text('Choose the Zephyr port:')],
+                       radio_zephyr_ports,
+                       [sg.Text('Choose the Log/Upload port:')],
+                       radio_log_ports,
                        [sg.Text('Automatically respond with ACKs?')],
                        [sg.Radio('Yes',group_id=2,key='ACK',default=True), sg.Radio('No',group_id=2,key='NOACK')],
                        [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
@@ -81,6 +91,9 @@ def ConfigWindow(comm_port: str)->dict:
     window = sg.Window('Configure', config_selector)
     event, values = window.read()
     window.close()
+
+    print("Zephyr port: ", [key for key in ports if values["zephyr_"+key]])
+    print("Log port: ", [key for key in ports if values["log_"+key]])
 
     # quit the program if the window is closed or Exit selected
     if event in (None, 'Exit'):
