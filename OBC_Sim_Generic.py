@@ -21,7 +21,7 @@ from datetime import datetime
 from time import sleep
 
 
-def GetTime():
+def GetTime() -> tuple:
     # create date and time strings
     current_datetime = datetime.now()
     curr_time = str(current_datetime.time().strftime("%H:%M:%S"))

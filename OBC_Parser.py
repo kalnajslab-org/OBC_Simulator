@@ -24,7 +24,7 @@ tm_dir = ''
 instrument = ''
 
 
-def GetDateTime():
+def GetDateTime() -> tuple:
     # create date and time strings
     current_datetime = datetime.datetime.now()
     date = str(current_datetime.date().strftime("%d-%b-%y"))

@@ -110,7 +110,7 @@ def ConfigWindow() -> dict:
             sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
             sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
             [sg.Text(" ")],
-            [sg.Text("Select the same port for Log and Zephyr if using the same port for both")],
+            [sg.Text("- Select the same Log and Zephyr ports when StratoCore is compiled for port sharing -")],
             [sg.Column(radio_log_ports), sg.Column(radio_zephyr_ports)],
             [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
             sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
