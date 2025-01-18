@@ -38,7 +38,6 @@ for button press events.
 import os
 import serial
 import glob
-import datetime
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
@@ -61,73 +60,104 @@ instrument = ''
 sg.theme('SystemDefault')
 sg.set_options(font = ("Helvetica", 12))
 
-def ConfigWindow(comm_port: str)->dict:
+def ConfigWindow()->dict:
     '''Configuration window for the OBC simulator
 
     A dictionary is returned with the following keys:
     inst(str): the instrument type
     serial(str): the serial port name connected to the instrument log port
     auto_ack(bool): whether to automatically respond with ACKs
+    
     '''
 
-    settings = sg.UserSettings()
+    # Load the saved settings from the settings file.
+    settings = sg.UserSettings(filename='OBC_Simulator.json', path=os.path.abspath(os.path.expanduser("~/")));
     zephyr_port = settings.get('ZephyrPort', 'None')
     log_port = settings.get('LogPort', 'None')
     auto_ack = settings.get('AutoAck', True)
 
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
-    radio_instruments = [sg.Radio(i, group_id="radio_instruments", key=i, default=(settings.get('Instrument', False)==i)) for i in instruments]
-    radio_instruments.insert(0, sg.Text('Instrument:'))
 
+    # Find all serial ports except the Bluetooth port
     ports = glob.glob('/dev/cu.*')
     ports.remove('/dev/cu.Bluetooth-Incoming-Port')
-    radio_zephyr_ports = [[sg.Radio(p, group_id="radio_zephyr_ports", key="zephyr_"+p, default=(p==zephyr_port))] for p in ports]
-    radio_zephyr_ports.insert(0, [sg.Text('Zephyr port:')])
 
-    radio_log_ports = [[sg.Radio(p, group_id="radio_log_ports", key="log_"+p, default=(p==log_port))] for p in ports]
-    radio_log_ports.insert(0, [sg.Text('Log port:')])
+    # Loop until all parameters are specified
+    all_params_selected = False
+    while not all_params_selected:
 
-    config_selector = [
-        [sg.Text('Settings file: ' + settings.full_filename)],
-        [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
-        radio_instruments,
-        [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
-        [sg.Text('Automatically respond with ACKs?'), sg.Radio('Yes',group_id=2,key='ACK',default=settings.get('AutoAck')), sg.Radio('No',group_id=2,key='NOACK',default=(not settings.get('AutoAck')))],
-        [sg.Column(radio_log_ports), sg.Column(radio_zephyr_ports)],
-        [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
-        sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+        # Create radio buttons for instruments and set the default to the saved instrument (if it exists).
+        radio_instruments = [sg.Radio(i, group_id="radio_instruments", key=i, default=(settings.get('Instrument', False)==i)) for i in instruments]
+        radio_instruments.insert(0, sg.Text('Instrument:'))
 
-    # GUI configurator
-    window = sg.Window('Configure', config_selector)
-    event, values = window.read()
-    window.close()
+        # Create radio buttons for zephyr ports and set the default to the saved port (if it exists). 
+        # The key is prefixed with 'zephyr_' to differentiate it from the log ports.
+        radio_zephyr_ports = [[sg.Radio(p, group_id="radio_zephyr_ports", key="zephyr_"+p, default=(p==zephyr_port))] for p in ports]
+        radio_zephyr_ports.insert(0, [sg.Text('Zephyr port:')])
 
-    zephyr_port = [i for i in values if i.startswith('zephyr_') and values[i] == True]
-    log_port = [i for i in values if i.startswith('log_') and values[i] == True]
-    instrument = [i for i in instruments if values[i] == True]
+        # Create radio buttons for log ports and set the default to the saved port (if it exists).
+        # The key is prefixed with 'log_' to differentiate it from the zephyr ports.
+        radio_log_ports = [[sg.Radio(p, group_id="radio_log_ports", key="log_"+p, default=(p==log_port))] for p in ports]
+        radio_log_ports.insert(0, [sg.Text('Log port:')])
+
+        # Create the layout for the configuration window
+        layout = [
+            [sg.Text('Settings file: ' + settings.full_filename)],
+            [sg.Text(" ")],
+            radio_instruments,
+            [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
+            [sg.Text('Automatically respond with ACKs?'), 
+            sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
+            sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
+            [sg.Text(" ")],
+            [sg.Text("Select the same port for Log and Zephyr if using the same port for both")],
+            [sg.Column(radio_log_ports), sg.Column(radio_zephyr_ports)],
+            [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
+            sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+
+        window = sg.Window('Configure', layout)
+        event, values = window.read()
+        window.close()
+
+        # quit the program if the window is closed or Exit selected
+        if event in (None, 'Exit'):
+            CloseAndExit()
+
+        # Extract the selected values from the radio buttons.
+        zephyr_port = [i for i in values if i.startswith('zephyr_') and values[i] == True]
+        log_port = [i for i in values if i.startswith('log_') and values[i] == True]
+        instrument = [i for i in instruments if values[i] == True]
+        if instrument:
+            instrument = instrument[0]
+
+        # If all three parameters are specified, set the flag to exit the loop.
+        if zephyr_port and log_port and instrument:
+            all_params_selected = True
+        else:
+            sg.popup('Please select an instrument, Zephyr port, and Log port', title='Error')
+
+    # Save the selected parameters to the settings file.
     settings['ZephyrPort'] = zephyr_port[0].replace('zephyr_','')
     settings['LogPort'] = log_port[0].replace('log_','')
-    settings['Instrument'] = instrument[0]
-    settings['LastRun'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    settings['Instrument'] = instrument
     settings['AutoAck'] = values['ACK']
 
+    # Return the selected parameters as a dictionary.
     config = {}
     config['LogPort'] = settings['LogPort'] 
+    config['ZephyrPort'] = settings['ZephyrPort']
     config['Instrument'] = settings['Instrument']
     config['AutoAck'] = settings['AutoAck']
 
+    # Print the selected parameters to the debug window.
     sg.Print("Instrument:", config['Instrument'])
     sg.Print("Port:", config['LogPort'])
     sg.Print("AutoAck:", config['AutoAck'])    
 
-    # quit the program if the window is closed or Exit selected
-    if event in (None, 'Exit'):
-        CloseAndExit()
-
     return config
 
 def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
-    '''Create the main window
+    '''Main window for the OBC simulator
     
     It has control buttons at the top and two columns for log messages and Zephyr messages
     '''
@@ -140,47 +170,72 @@ def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
     serial_port = sport
     cmd_filename = cmd_fname
 
-    # Command buttons at the top of the window
-    buttons = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
-    buttons.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
-    buttons.append(sg.Stretch())
-    buttons.append(sg.Text("Log port: " + config['LogPort'], size=(30,1), justification='right'))
-    # A columns for log messages and Zephyr messages
+    # Command buttons and config values at the top of the window
+    top_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
+    top_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
+
+    log_port = sg.Text("Log port: " + config['LogPort'])
+    zephyr_port = sg.Text("Zephyr port: " + config['ZephyrPort'])
+    auto_ack = sg.Text("AutoAck: " + str(config['AutoAck']))
+    top_row.append(log_port)
+    top_row.append(zephyr_port)
+    top_row.append(auto_ack)
+
     widgets = [
-        buttons,
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
-         sg.Column([[sg.Text('Zephyr Messages'           )], [sg.MLine(key='-zephyr-'+sg.WRITE_ONLY_KEY, size=(100,30))]])]
+        top_row,
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
+         sg.Column([[sg.Text('Zephyr Messages'           )], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(100,30))]])]
     ]
 
     main_window = sg.Window(title=instrument, layout=widgets, location=(500, 100), finalize=True)
 
 def AddLogMsg(message):
+    '''Add a message to the log window
+    
+    if the message contains 'ERR: ', the text color is red
+    '''
+
     global main_window
 
     if -1 != message.find('ERR: '):
-        main_window['-log-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
+        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     else:
-        main_window['-log-'+sg.WRITE_ONLY_KEY].print(message, end="")
+        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
 def AddZephyrMsg(message):
+    '''Add a message to the Zephyr window
+    
+    The message color is determined by the message type.
+    '''
+
     global main_window
 
     if -1 != message.find('TM') and -1 != message.find('CRIT'):
-        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
+        main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
-        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
+        main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
     elif -1 != message.find('TM'):
-        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, text_color='green', end="")
+        main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='green', end="")
     else:
-        main_window['-zephyr-'+sg.WRITE_ONLY_KEY].print(message, end="")
+        main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
-def DebugPrint(message, error=False):
+def AddDebugMsg(message, error=False):
+    '''Print a message to the debug window
+
+    If error is True, the message background is red
+    '''
     if not error:
         sg.Print(message)
     else:
         sg.Print(message, background_color='red')
 
 def PollWindowEvents():
+    '''Poll the main and popup windows for events
+    
+    When an event is detected, current_action is set to the event name,
+    and new_window is set to True to indicate that the event should be handled.
+    '''
+
     global popup_window, main_window, current_action, new_window
 
     popup_window_event = None

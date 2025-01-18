@@ -58,9 +58,8 @@ def FileSetup():
 def parse_args():
     parser = argparse.ArgumentParser(
         prog='OBC_Simulator',
-        description='Provides basic simulation of the Zephyr command link',
-        epilog='')
-    parser.add_argument('-s', '--serial', help='Serial port for comms', type=str,action='store', default='')
+        description='Simulates the Zephyr communications with a StratoCore system.',
+        epilog='The Zephyr and Log ports may be separate or shared, depending on the StratoCore system configuration.')
     args = parser.parse_args()
     return args
 
@@ -75,7 +74,7 @@ def main():
     cmd_queue = queue.Queue()
 
     # get configuration
-    config = OBC_GUI.ConfigWindow(comm_port=args.serial)
+    config = OBC_GUI.ConfigWindow()
 
     # set global variables
     instrument = config['Instrument']
@@ -115,15 +114,15 @@ def main():
                 timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
                     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint(timestring + 'Sent TMAck')
+                    OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
                     OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint(timestring + 'Sent SAck')
+                    OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
                     OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
-                    OBC_GUI.DebugPrint(timestring + 'Sent RAAck')
+                    OBC_GUI.AddDebugMsg(timestring + 'Sent RAAck')
                 else:
-                    OBC_GUI.DebugPrint('Unknown command', True)
+                    OBC_GUI.AddDebugMsg('Unknown command', True)
 
 
 
