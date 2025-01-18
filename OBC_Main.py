@@ -78,9 +78,9 @@ def main():
     config = OBC_GUI.ConfigWindow(comm_port=args.serial)
 
     # set global variables
-    instrument = config['inst']
-    port_name = config['serial']
-    auto_ack = config['auto_ack']
+    instrument = config['Instrument']
+    port_name = config['LogPort']
+    auto_ack = config['AutoAck']
 
     # attempt to open the serial port
     try:
