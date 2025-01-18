@@ -30,7 +30,7 @@ def GetTime():
     return curr_time, milliseconds
 
 
-def crc16_ccitt(crc, data):
+def crc16_ccitt(crc: int, data: bytes) -> int:
     msb = crc >> 8
     lsb = crc & 255
 
@@ -42,20 +42,20 @@ def crc16_ccitt(crc, data):
     return (msb << 8) + lsb
 
 
-def AddCRC(InputXMLString):
+def AddCRC(InputXMLString: str) -> str:
     crc = crc16_ccitt(0x1021,InputXMLString.encode("ASCII"))
 
     return InputXMLString + '<CRC>' + str(crc) + '</CRC>\n'
 
 
-def prettify(xmlStr):
+def prettify(xmlStr: ET.Element) -> str:
     INDENT = "\t"
     rough_string = ET.tostring(xmlStr)
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent=INDENT)
 
 
-def sendIM(instrument, InstrumentMode, filename, port):
+def sendIM(instrument: str, InstrumentMode: str, filename: str, port: serial.Serial) -> str:
     XML_IM = ET.Element('IM')
 
     msg_id = ET.SubElement(XML_IM,'Msg')
@@ -84,7 +84,7 @@ def sendIM(instrument, InstrumentMode, filename, port):
     return output
 
 
-def sendGPS(zenith, filename, port):
+def sendGPS(zenith: float, filename: str, port: serial.Serial) -> str:
 
     XML_GPS = ET.Element('GPS')
     msg_id = ET.SubElement(XML_GPS,'Msg')
@@ -134,7 +134,7 @@ def sendGPS(zenith, filename, port):
     return output
 
 
-def sendTC(instrument, command, filename, port):
+def sendTC(instrument: str, command: str, filename: str, port: serial.Serial) -> str:
 
     XML_TC = ET.Element('TC')
 
@@ -170,7 +170,7 @@ def sendTC(instrument, command, filename, port):
     return output
 
 
-def sendSAck(instrument, ACK, filename, port):
+def sendSAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
     XML_TMAck = ET.Element('SAck')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
@@ -198,7 +198,7 @@ def sendSAck(instrument, ACK, filename, port):
     return output
 
 
-def sendRAAck(instrument, ACK, filename, port):
+def sendRAAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
 
     XML_RAAck = ET.Element('RAAck')
 
@@ -227,7 +227,7 @@ def sendRAAck(instrument, ACK, filename, port):
     return output
 
 
-def sendTMAck(instrument, ACK, filename, port):
+def sendTMAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
     XML_TMAck = ET.Element('TMAck')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
@@ -255,7 +255,7 @@ def sendTMAck(instrument, ACK, filename, port):
     return output
 
 
-def sendSW(instrument, filename, port):
+def sendSW(instrument: str, filename: str, port: serial.Serial) -> str:
     XML_TMAck = ET.Element('SW')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
@@ -280,7 +280,7 @@ def sendSW(instrument, filename, port):
     return output
 
 
-def listenFor(port, reply, terminator, time_out, filename):
+def listenFor(port: str, reply: str, terminator: bytes, time_out: int, filename: str) -> bool:
 
     print("Listening For: " + reply)
     with serial.Serial(port, 115200, timeout=time_out) as ser:
@@ -300,7 +300,7 @@ def listenFor(port, reply, terminator, time_out, filename):
 
 
 
-def main():
+def main() -> None:
     #port = sys.argv[1]
     #LogFile = sys.argv[2]
 

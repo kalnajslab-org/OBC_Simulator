@@ -60,7 +60,7 @@ instrument = ''
 sg.theme('SystemDefault')
 sg.set_options(font = ("Helvetica", 12))
 
-def ConfigWindow()->dict:
+def ConfigWindow() -> dict:
     '''Configuration window for the OBC simulator
 
     A dictionary is returned with the following keys:
@@ -156,7 +156,7 @@ def ConfigWindow()->dict:
 
     return config
 
-def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
+def MainWindow(config: dict, sport: serial.Serial, cmd_fname: str) -> None:
     '''Main window for the OBC simulator
     
     It has control buttons at the top and two columns for log messages and Zephyr messages
@@ -181,6 +181,7 @@ def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
     top_row.append(zephyr_port)
     top_row.append(auto_ack)
 
+    # Main window layout
     widgets = [
         top_row,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
@@ -189,7 +190,7 @@ def MainWindow(config:dict, sport:serial, cmd_fname:str)->None:
 
     main_window = sg.Window(title=instrument, layout=widgets, location=(500, 100), finalize=True)
 
-def AddLogMsg(message):
+def AddLogMsg(message: str) -> None:
     '''Add a message to the log window
     
     if the message contains 'ERR: ', the text color is red
@@ -202,7 +203,7 @@ def AddLogMsg(message):
     else:
         main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
-def AddZephyrMsg(message):
+def AddZephyrMsg(message: str) -> None:
     '''Add a message to the Zephyr window
     
     The message color is determined by the message type.
@@ -219,7 +220,7 @@ def AddZephyrMsg(message):
     else:
         main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
-def AddDebugMsg(message, error=False):
+def AddDebugMsg(message: str, error: bool = False) -> None:
     '''Print a message to the debug window
 
     If error is True, the message background is red
@@ -229,7 +230,7 @@ def AddDebugMsg(message, error=False):
     else:
         sg.Print(message, background_color='red')
 
-def PollWindowEvents():
+def PollWindowEvents() -> None:
     '''Poll the main and popup windows for events
     
     When an event is detected, current_action is set to the event name,
@@ -261,7 +262,7 @@ def PollWindowEvents():
 
     return
 
-def ShowIMPopup():
+def ShowIMPopup() -> None:
     global popup_window
 
     mode_selector = [[sg.Text('Select a mode')],
@@ -275,7 +276,7 @@ def ShowIMPopup():
     # GUI mode selector
     popup_window = sg.Window('Mode Message Configurator', mode_selector)
 
-def WaitIMPopup():
+def WaitIMPopup() -> None:
     global popup_window, current_action, new_window
 
     event, _ = popup_window.read(timeout=10)
@@ -298,7 +299,7 @@ def WaitIMPopup():
     current_action = 'waiting'
     new_window = True
 
-def ShowGPSPopup():
+def ShowGPSPopup() -> None:
     global popup_window
 
     gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
@@ -309,7 +310,7 @@ def ShowGPSPopup():
     # GUI GPS creator with SZA float validation
     popup_window = sg.Window('GPS Message Configurator', gps_selector)
 
-def WaitGPSPopup():
+def WaitGPSPopup() -> None:
     global popup_window, current_action, new_window
 
     event, values = popup_window.read(timeout=10)
@@ -341,14 +342,14 @@ def WaitGPSPopup():
     current_action = 'waiting'
     new_window = True
 
-def SWMessage():
+def SWMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending shutdown warning")
     OBC_Sim_Generic.sendSW(instrument, cmd_filename, serial_port)
 
-def ShowTCPopup():
+def ShowTCPopup() -> None:
     global popup_window
 
     tc_selector = [[sg.Text('Input a telecommand:')],
@@ -359,7 +360,7 @@ def ShowTCPopup():
     # GUI TC creator
     popup_window = sg.Window('TC Creator', tc_selector)
 
-def WaitTCPopup():
+def WaitTCPopup() -> None:
     global popup_window, current_action, new_window
 
     event, values = popup_window.read(timeout=10)
@@ -381,28 +382,28 @@ def WaitTCPopup():
     current_action = 'waiting'
     new_window = True
 
-def SAckMessage():
+def SAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
     OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, serial_port)
 
-def RAAckMessage():
+def RAAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
     OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, serial_port)
 
-def TMAckMessage():
+def TMAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, serial_port)
 
-def CloseAndExit():
+def CloseAndExit() -> None:
     global main_window, popup_window
 
     if main_window != None:
@@ -414,7 +415,7 @@ def CloseAndExit():
 
     os._exit(0)
 
-def RunCommands():
+def RunCommands() -> None:
     global new_window, current_action
 
     if new_window:

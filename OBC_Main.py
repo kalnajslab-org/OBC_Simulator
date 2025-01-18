@@ -23,7 +23,7 @@ cmd_filename = ''
 tm_dir = ''
 
 
-def FileSetup():
+def FileSetup() -> None:
     global inst_filename, xml_filename, cmd_filename, tm_dir
 
     # create date and time strings for file creation
@@ -55,7 +55,7 @@ def FileSetup():
         inst.write(instrument + " Commands: " + date + " at " + start_time + "\n\n")
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog='OBC_Simulator',
         description='Simulates the Zephyr communications with a StratoCore system.',
@@ -63,7 +63,7 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def main():
+def main() -> None:
     global instrument
 
     args = parse_args()

@@ -35,7 +35,7 @@ def GetDateTime():
     return date, curr_time, curr_time_file, milliseconds
 
 
-def HandleStratoLogMessage(message):
+def HandleStratoLogMessage(message: str) -> None:
     message = message.rstrip() + '\n'
 
     # formulate the time
@@ -50,7 +50,7 @@ def HandleStratoLogMessage(message):
     with open(inst_filename, 'a') as inst:
         inst.write(message)
 
-def HandleXMLMessage(first_line):
+def HandleXMLMessage(first_line: str) -> None:
     message = first_line + str(port.read_until(b'</CRC>\n'), 'ascii')
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
@@ -80,7 +80,7 @@ def HandleXMLMessage(first_line):
     with open(xml_filename, 'a') as xml:
         xml.write(display)
 
-def WriteTMFile(message, binary):
+def WriteTMFile(message: str, binary: bytes) -> None:
     date, _, time, _ = GetDateTime()
 
     filename = tm_dir + '/TM_' + date + '_' + time + '.' + instrument + '.dat'
@@ -90,7 +90,7 @@ def WriteTMFile(message, binary):
         tm_file.write(binary)
 
 # this function is run as a thread from OBC_Main
-def ReadInstrument(inst_queue_in, xml_queue_in, port_in, inst_filename_in, xml_filename_in, tm_dir_in, inst_in, cmd_queue_in):
+def ReadInstrument(inst_queue_in: queue.Queue, xml_queue_in: queue.Queue, port_in: serial.Serial, inst_filename_in: str, xml_filename_in: str, tm_dir_in: str, inst_in: str, cmd_queue_in: queue.Queue) -> None:
     global port, inst_filename, xml_filename, inst_queue, xml_queue, tm_dir, instrument, cmd_queue
 
     # assign globals
