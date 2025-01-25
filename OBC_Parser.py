@@ -25,6 +25,7 @@ import datetime
 import xmltodict
 
 # globals
+zephyr_port = None
 log_port = None
 inst_filename = ''
 xml_filename = ''
@@ -60,7 +61,7 @@ def HandleStratoLogMessage(message: str) -> None:
         inst.write(message)
 
 def HandleZephyrMessage(first_line: str) -> None:
-    message = first_line + str(log_port.read_until(b'</CRC>\n'), 'ascii')
+    message = first_line + str(zephyr_port.read_until(b'</CRC>\n'), 'ascii')
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
     msg_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
@@ -69,7 +70,7 @@ def HandleZephyrMessage(first_line: str) -> None:
 
     # if TM, save payload
     if 'TM' == msg_type:
-        binary_section = log_port.read_until(b'END')
+        binary_section = zephyr_port.read_until(b'END')
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
     elif 'S' == msg_type:
@@ -110,6 +111,7 @@ def ReadInstrument(
     inst_in: str,
     cmd_queue_in: queue.Queue) -> None:
 
+    global zephyr_port
     global log_port
     global inst_filename
     global xml_filename
@@ -120,6 +122,7 @@ def ReadInstrument(
     global cmd_queue
 
     # assign globals
+    zephyr_port = zephyrport
     log_port = logport
     inst_filename = inst_filename_in
     xml_filename = xml_filename_in
@@ -133,8 +136,8 @@ def ReadInstrument(
         # read a line from either the log port or zephyr port
         if log_port and log_port.in_waiting:
             new_line = log_port.readline()
-        elif zephyrport and zephyrport.in_waiting:
-            new_line = zephyrport.readline()
+        elif zephyr_port and zephyr_port.in_waiting:
+            new_line = zephyr_port.readline()
         else:
             continue
 

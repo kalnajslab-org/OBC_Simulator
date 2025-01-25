@@ -101,15 +101,15 @@ def main() -> None:
     log_port = None
     zephyr_port = None
     try:
-        log_port = serial.Serial(log_port_name, 115200)
+        zephyr_port = serial.Serial(zephyr_port_name, 115200)
     except Exception as e:
-        print("Error opening log serial port", e)
+        print("Error opening zephyr serial port", e)
         exit()
     if log_port_name != zephyr_port_name:
         try:
-            zephyr_port = serial.Serial(zephyr_port_name, 115200)
+            log_port = serial.Serial(log_port_name, 115200)
         except Exception as e:
-            print("Error opening zephyr serial port", e)
+            print("Error opening log serial port", e)
             exit()
 
     # set up the files and structure
@@ -146,13 +146,13 @@ def main() -> None:
                 time, millis = OBC_Sim_Generic.GetTime()
                 timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
-                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, log_port)
+                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, log_port)
+                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, zephyr_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
-                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, log_port)
+                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.AddDebugMsg('Unknown command', True)

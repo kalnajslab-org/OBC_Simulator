@@ -301,7 +301,7 @@ def WaitIMPopup() -> None:
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
         sg.Print(timestring + "Setting mode:", event)
-        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, log_port)
+        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, zephyr_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -344,7 +344,7 @@ def WaitGPSPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
-        OBC_Sim_Generic.sendGPS(sza, cmd_filename, log_port)
+        OBC_Sim_Generic.sendGPS(sza, cmd_filename, zephyr_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -355,7 +355,7 @@ def SWMessage() -> None:
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending shutdown warning")
-    OBC_Sim_Generic.sendSW(instrument, cmd_filename, log_port)
+    OBC_Sim_Generic.sendSW(instrument, cmd_filename, zephyr_port)
 
 def ShowTCPopup() -> None:
     global popup_window
@@ -384,7 +384,7 @@ def WaitTCPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending TC:", values[0])
-        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, log_port)
+        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, zephyr_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -395,21 +395,21 @@ def SAckMessage() -> None:
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
-    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, log_port)
+    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, zephyr_port)
 
 def RAAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
-    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, log_port)
+    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
 
 def TMAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
-    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, log_port)
+    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
 
 def CloseAndExit() -> None:
     global main_window, popup_window
