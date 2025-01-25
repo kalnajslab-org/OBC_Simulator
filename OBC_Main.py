@@ -1,19 +1,35 @@
 #!/usr/bin/env python3
+"""
+OBC_Main.py
+This script simulates the Zephyr communications with a StratoCore system. It sets up the necessary file structure, 
+opens serial ports for communication, and starts the main output window for the OBC simulator. It also listens for 
+instrument messages over serial and handles command queues.
+Modules:
+    OBC_GUI
+    OBC_Parser
+    OBC_Sim_Generic
+    argparse
+    threading
+    serial
+    queue
+    os
+Functions:
+    FileSetup() -> None:
+        Sets up the file structure and creates necessary files for the session.
+    parse_args() -> argparse.Namespace:
+        Parses command-line arguments.
+    main() -> None:
+        Main function that initializes the OBC simulator, sets up file structure, opens serial ports, and starts 
+        the main output window. It also listens for instrument messages and handles command queues.
+"""
 # -*- coding: utf-8 -*-
-
-'''
-This script provides a console to simulate the OBC over serial
-
-Author: Alex St. Clair
-Created: May 2020
-'''
 
 # modules
 import OBC_GUI, OBC_Parser, OBC_Sim_Generic
 import argparse
 
 # libraries
-import threading, serial, queue, time, datetime, os
+import threading, serial, queue, os
 
 # globals
 instrument = ''
@@ -21,7 +37,6 @@ inst_filename = ''
 xml_filename = ''
 cmd_filename = ''
 tm_dir = ''
-
 
 def FileSetup() -> None:
     global inst_filename, xml_filename, cmd_filename, tm_dir
@@ -78,25 +93,43 @@ def main() -> None:
 
     # set global variables
     instrument = config['Instrument']
-    port_name = config['LogPort']
+    log_port_name = config['LogPort']
+    zephyr_port_name = config['ZephyrPort']
     auto_ack = config['AutoAck']
 
-    # attempt to open the serial port
+    # attempt to open the serial ports
+    log_port = None
+    zephyr_port = None
     try:
-        port = serial.Serial(port_name, 115200)
+        log_port = serial.Serial(log_port_name, 115200)
     except Exception as e:
-        print("Error opening serial port", e)
+        print("Error opening log serial port", e)
         exit()
+    if log_port_name != zephyr_port_name:
+        try:
+            zephyr_port = serial.Serial(zephyr_port_name, 115200)
+        except Exception as e:
+            print("Error opening zephyr serial port", e)
+            exit()
 
     # set up the files and structure
     FileSetup()
 
-    # start the instrument output window
-    OBC_GUI.MainWindow(config, sport=port, cmd_fname=cmd_filename)
+    # start the main output window
+    OBC_GUI.MainWindow(config, logport=log_port, zephyrport=zephyr_port, cmd_fname=cmd_filename)
 
     # start listening for instrument messages over serial
-    threading.Thread(target=OBC_Parser.ReadInstrument,
-        args=(inst_queue,xml_queue,port,inst_filename,xml_filename,tm_dir,instrument,cmd_queue)).start()
+    obc_parser_args=(
+        inst_queue,
+        xml_queue,
+        log_port,
+        zephyr_port,
+        inst_filename,
+        xml_filename,
+        tm_dir,
+        instrument,
+        cmd_queue)
+    threading.Thread(target=OBC_Parser.ReadInstrument,args=obc_parser_args).start()
 
     while True:
         # run command GUI
@@ -113,18 +146,16 @@ def main() -> None:
                 time, millis = OBC_Sim_Generic.GetTime()
                 timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
-                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, port)
+                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, log_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, port)
+                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, log_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
-                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, port)
+                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, log_port)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.AddDebugMsg('Unknown command', True)
-
-
 
 if (__name__ == '__main__'):
     main()

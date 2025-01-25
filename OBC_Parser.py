@@ -1,12 +1,23 @@
 #!/usr/bin/env python3
+"""
+This module provides functions to handle and process messages from instruments
+connected via serial ports. It includes functions to handle log messages, Zephyr
+messages, and to write telemetry files. The main function `ReadInstrument` runs
+as a thread to continuously read from the serial ports and process the incoming
+messages.
+Functions:
+    GetDateTime() -> tuple:
+        Returns the current date and time in various string formats.
+    HandleStratoLogMessage(message: str) -> None:
+        Processes and logs a Strato log message.
+    HandleZephyrMessage(first_line: str) -> None:
+        Processes and logs a Zephyr message, and handles specific message types.
+    WriteTMFile(message: str, binary: bytes) -> None:
+        Writes a telemetry message and its binary payload to a file.
+    ReadInstrument(
+        Continuously reads from the serial ports and processes incoming messages.
+"""
 # -*- coding: utf-8 -*-
-
-'''
-This file provides a parser for instrument serial output
-
-Author: Alex St. Clair
-Created: June 2020
-'''
 
 import serial
 import queue
@@ -14,7 +25,7 @@ import datetime
 import xmltodict
 
 # globals
-port = None
+log_port = None
 inst_filename = ''
 xml_filename = ''
 inst_queue = None
@@ -22,7 +33,6 @@ xml_queue = None
 cmd_queue = None
 tm_dir = ''
 instrument = ''
-
 
 def GetDateTime() -> tuple:
     # create date and time strings
@@ -33,7 +43,6 @@ def GetDateTime() -> tuple:
     milliseconds = str(current_datetime.time().strftime("%f"))[:-3]
 
     return date, curr_time, curr_time_file, milliseconds
-
 
 def HandleStratoLogMessage(message: str) -> None:
     message = message.rstrip() + '\n'
@@ -50,8 +59,8 @@ def HandleStratoLogMessage(message: str) -> None:
     with open(inst_filename, 'a') as inst:
         inst.write(message)
 
-def HandleXMLMessage(first_line: str) -> None:
-    message = first_line + str(port.read_until(b'</CRC>\n'), 'ascii')
+def HandleZephyrMessage(first_line: str) -> None:
+    message = first_line + str(log_port.read_until(b'</CRC>\n'), 'ascii')
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
     msg_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
@@ -60,7 +69,7 @@ def HandleXMLMessage(first_line: str) -> None:
 
     # if TM, save payload
     if 'TM' == msg_type:
-        binary_section = port.read_until(b'END')
+        binary_section = log_port.read_until(b'END')
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
     elif 'S' == msg_type:
@@ -90,11 +99,28 @@ def WriteTMFile(message: str, binary: bytes) -> None:
         tm_file.write(binary)
 
 # this function is run as a thread from OBC_Main
-def ReadInstrument(inst_queue_in: queue.Queue, xml_queue_in: queue.Queue, port_in: serial.Serial, inst_filename_in: str, xml_filename_in: str, tm_dir_in: str, inst_in: str, cmd_queue_in: queue.Queue) -> None:
-    global port, inst_filename, xml_filename, inst_queue, xml_queue, tm_dir, instrument, cmd_queue
+def ReadInstrument(
+    inst_queue_in: queue.Queue,
+    xml_queue_in: queue.Queue,
+    logport: serial.Serial,
+    zephyrport: serial.Serial,
+    inst_filename_in: str,
+    xml_filename_in: str,
+    tm_dir_in: str,
+    inst_in: str,
+    cmd_queue_in: queue.Queue) -> None:
+
+    global log_port
+    global inst_filename
+    global xml_filename
+    global inst_queue
+    global xml_queue
+    global tm_dir
+    global instrument
+    global cmd_queue
 
     # assign globals
-    port = port_in
+    log_port = logport
     inst_filename = inst_filename_in
     xml_filename = xml_filename_in
     inst_queue = inst_queue_in
@@ -103,12 +129,19 @@ def ReadInstrument(inst_queue_in: queue.Queue, xml_queue_in: queue.Queue, port_i
     instrument = inst_in
     cmd_queue = cmd_queue_in
 
-    # as long as the port is open, parse no messages
-    while port:
-        new_line = port.readline()
+    while True:
+        # read a line from either the log port or zephyr port
+        if log_port and log_port.in_waiting:
+            new_line = log_port.readline()
+        elif zephyrport and zephyrport.in_waiting:
+            new_line = zephyrport.readline()
+        else:
+            continue
 
+        # if the line contains a '<', it is a Zephyr message
         if (-1 != new_line.find(b'<')):
-            HandleXMLMessage(str(new_line,'ascii'))
+            HandleZephyrMessage(str(new_line,'ascii'))
             pass
+        # otherwise, it is a log message
         else:
             HandleStratoLogMessage(str(new_line,'ascii'))

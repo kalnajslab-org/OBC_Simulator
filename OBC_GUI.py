@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-'''
-This file provides a GUI for OBC commands and output
-
-Author: Alex St. Clair
-Created: May 2020
-'''
-
-''' 
+""" 
 This module provides a GUI for the OBC simulator. 
 
 ConfigWindow() is called to prompt for configuration.
@@ -32,7 +25,11 @@ The popup windows are all assigned to the global variable: popup_window.
 WaitMessageSelection() is called from RunCommands() to check for button presses.
 This function calls both main_window.read() and popup_window.read() to check 
 for button press events.
-'''
+
+SimplePyGUIQt.UserSettings is used to persist the configuration parameters.
+These are stored in a JSON file in the user's home directory. The config
+parameters are returned to the main program as a dictionary.
+"""
 
 # modules
 import os
@@ -51,8 +48,9 @@ main_window = None
 current_action = 'waiting'
 new_window = True
 
-# global configuration variables
-serial_port = None
+# global variables
+log_port = None
+zephyr_port = None
 cmd_filename = ''
 instrument = ''
 
@@ -78,13 +76,13 @@ def ConfigWindow() -> dict:
 
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
 
-    # Find all serial ports except the Bluetooth port
+    # Find all of the appropriate serial ports.
     ports = glob.glob('/dev/cu.*')
     ports.remove('/dev/cu.Bluetooth-Incoming-Port')
 
     # Loop until all parameters are specified
-    all_params_selected = False
-    while not all_params_selected:
+    config_values_validated = False
+    while not config_values_validated:
 
         # Create radio buttons for instruments and set the default to the saved instrument (if it exists).
         radio_instruments = [sg.Radio(i, group_id="radio_instruments", key=i, default=(settings.get('Instrument', False)==i)) for i in instruments]
@@ -110,8 +108,9 @@ def ConfigWindow() -> dict:
             sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
             sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
             [sg.Text(" ")],
-            [sg.Text("- Select the same Log and Zephyr ports when StratoCore is compiled for port sharing -")],
-            [sg.Column(radio_log_ports), sg.Column(radio_zephyr_ports)],
+            [sg.Text("- Select the same Log and Zephyr ports when StratoCore<INST> is")],
+            [sg.Text("  compiled for port sharing or when the log port is not used. -")],
+            [sg.Column(radio_zephyr_ports), sg.Column(radio_log_ports)],
             [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
             sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
@@ -130,11 +129,18 @@ def ConfigWindow() -> dict:
         if instrument:
             instrument = instrument[0]
 
-        # If all three parameters are specified, set the flag to exit the loop.
+        # Verify the selections.
         if zephyr_port and log_port and instrument:
-            all_params_selected = True
+            # Verify that the zephyr and log ports are both accessible
+            try:
+                serial.Serial(zephyr_port[0].replace('zephyr_',''), 115200)
+                serial.Serial(log_port[0].replace('log_',''), 115200)
+            except Exception as e:
+                sg.popup('Error opening serial port: ' + str(e), title='Error')
+                continue
+            config_values_validated = True
         else:
-            sg.popup('Please select an instrument, Zephyr port, and Log port', title='Error')
+            sg.popup('Please select an Instrument, Zephyr port, and Log port', title='Error')
 
     # Save the selected parameters to the settings file.
     settings['ZephyrPort'] = zephyr_port[0].replace('zephyr_','')
@@ -156,30 +162,32 @@ def ConfigWindow() -> dict:
 
     return config
 
-def MainWindow(config: dict, sport: serial.Serial, cmd_fname: str) -> None:
+def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, cmd_fname: str) -> None:
     '''Main window for the OBC simulator
     
     It has control buttons at the top and two columns for log messages and Zephyr messages
     '''
     global main_window
-    global serial_port
+    global log_port
+    global zephyr_port
     global instrument
     global cmd_filename
 
     instrument = config['Instrument']
-    serial_port = sport
+    log_port = logport
+    zephyr_port = zephyrport
     cmd_filename = cmd_fname
 
     # Command buttons and config values at the top of the window
     top_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
     top_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
 
-    log_port = sg.Text("Log port: " + config['LogPort'])
-    zephyr_port = sg.Text("Zephyr port: " + config['ZephyrPort'])
-    auto_ack = sg.Text("AutoAck: " + str(config['AutoAck']))
-    top_row.append(log_port)
-    top_row.append(zephyr_port)
-    top_row.append(auto_ack)
+    log_port_text = sg.Text("Log port: " + config['LogPort'])
+    zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'])
+    auto_ack_text = sg.Text("AutoAck: " + str(config['AutoAck']))
+    top_row.append(log_port_text)
+    top_row.append(zephyr_port_text)
+    top_row.append(auto_ack_text)
 
     # Main window layout
     widgets = [
@@ -293,7 +301,7 @@ def WaitIMPopup() -> None:
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
         sg.Print(timestring + "Setting mode:", event)
-        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, serial_port)
+        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, log_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -336,7 +344,7 @@ def WaitGPSPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
-        OBC_Sim_Generic.sendGPS(sza, cmd_filename, serial_port)
+        OBC_Sim_Generic.sendGPS(sza, cmd_filename, log_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -347,7 +355,7 @@ def SWMessage() -> None:
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending shutdown warning")
-    OBC_Sim_Generic.sendSW(instrument, cmd_filename, serial_port)
+    OBC_Sim_Generic.sendSW(instrument, cmd_filename, log_port)
 
 def ShowTCPopup() -> None:
     global popup_window
@@ -376,7 +384,7 @@ def WaitTCPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending TC:", values[0])
-        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, serial_port)
+        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, log_port)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -387,21 +395,21 @@ def SAckMessage() -> None:
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
-    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, serial_port)
+    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, log_port)
 
 def RAAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
-    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, serial_port)
+    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, log_port)
 
 def TMAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
-    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, serial_port)
+    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, log_port)
 
 def CloseAndExit() -> None:
     global main_window, popup_window
