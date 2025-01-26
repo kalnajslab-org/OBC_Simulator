@@ -93,37 +93,20 @@ def main() -> None:
 
     # set global variables
     instrument = config['Instrument']
-    log_port_name = config['LogPort']
-    zephyr_port_name = config['ZephyrPort']
     auto_ack = config['AutoAck']
-
-    # attempt to open the serial ports
-    log_port = None
-    zephyr_port = None
-    try:
-        zephyr_port = serial.Serial(zephyr_port_name, 115200)
-    except Exception as e:
-        print("Error opening zephyr serial port", e)
-        exit()
-    if log_port_name != zephyr_port_name:
-        try:
-            log_port = serial.Serial(log_port_name, 115200)
-        except Exception as e:
-            print("Error opening log serial port", e)
-            exit()
 
     # set up the files and structure
     FileSetup()
 
     # start the main output window
-    OBC_GUI.MainWindow(config, logport=log_port, zephyrport=zephyr_port, cmd_fname=cmd_filename)
+    OBC_GUI.MainWindow(config, logport=config['LogPort'], zephyrport=config['ZephyrPort'], cmd_fname=cmd_filename)
 
     # start listening for instrument messages over serial
     obc_parser_args=(
         inst_queue,
         xml_queue,
-        log_port,
-        zephyr_port,
+        config['LogPort'],
+        config['ZephyrPort'],
         inst_filename,
         xml_filename,
         tm_dir,
@@ -146,13 +129,13 @@ def main() -> None:
                 time, millis = OBC_Sim_Generic.GetTime()
                 timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
-                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
+                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
                     OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, zephyr_port)
+                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, config['ZephyrPort'])
                     OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
-                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
+                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
                     OBC_GUI.AddDebugMsg(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.AddDebugMsg('Unknown command', True)

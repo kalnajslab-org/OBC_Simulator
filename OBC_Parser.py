@@ -23,6 +23,7 @@ import serial
 import queue
 import datetime
 import xmltodict
+import time
 
 # globals
 zephyr_port = None
@@ -99,7 +100,7 @@ def WriteTMFile(message: str, binary: bytes) -> None:
         tm_file.write(message.encode())
         tm_file.write(binary)
 
-# this function is run as a thread from OBC_Main
+# This function is run as a thread from OBC_Main.
 def ReadInstrument(
     inst_queue_in: queue.Queue,
     xml_queue_in: queue.Queue,
@@ -133,12 +134,26 @@ def ReadInstrument(
     cmd_queue = cmd_queue_in
 
     while True:
+        # The zephyr and log ports are opened in OBC_Gui.
+        # They can be opened/closed from the GUI, when
+        # the suspend button is pressed. Thus the exception
+        # handling is used to detect this.
+
+        new_line = None
         # read a line from either the log port or zephyr port
-        if log_port and log_port.in_waiting:
-            new_line = log_port.readline()
-        elif zephyr_port and zephyr_port.in_waiting:
-            new_line = zephyr_port.readline()
-        else:
+        try:
+            if log_port.is_open: 
+                if log_port.in_waiting:
+                    new_line = log_port.readline()
+            elif zephyr_port.is_open: 
+                if zephyr_port.in_waiting:
+                    new_line = zephyr_port.readline()
+        except OSError as e:
+            time.sleep(0.001)
+            continue
+
+        if not new_line:
+            time.sleep(0.001)
             continue
 
         # if the line contains a '<', it is a Zephyr message

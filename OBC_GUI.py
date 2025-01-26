@@ -33,6 +33,7 @@ parameters are returned to the main program as a dictionary.
 
 # modules
 import os
+import time
 import serial
 import glob
 import PySimpleGUIQt as sg
@@ -53,6 +54,7 @@ log_port = None
 zephyr_port = None
 cmd_filename = ''
 instrument = ''
+serial_suspended = False
 
 # set the overall look of the GUI
 sg.theme('SystemDefault')
@@ -81,6 +83,7 @@ def ConfigWindow() -> dict:
     ports.remove('/dev/cu.Bluetooth-Incoming-Port')
 
     # Loop until all parameters are specified
+    config = {}
     config_values_validated = False
     while not config_values_validated:
 
@@ -131,10 +134,15 @@ def ConfigWindow() -> dict:
 
         # Verify the selections.
         if zephyr_port and log_port and instrument:
+            zephyr_port_name = zephyr_port[0].replace('zephyr_','')
+            log_port_name = log_port[0].replace('log_','')
             # Verify that the zephyr and log ports are both accessible
             try:
-                serial.Serial(zephyr_port[0].replace('zephyr_',''), 115200)
-                serial.Serial(log_port[0].replace('log_',''), 115200)
+                config['ZephyrPort'] = serial.Serial(zephyr_port_name, 115200)
+                if log_port_name != zephyr_port_name:
+                    config['LogPort'] = serial.Serial(log_port_name, 115200)
+                else:
+                    config['LogPort'] = config['ZephyrPort']
             except Exception as e:
                 sg.popup('Error opening serial port: ' + str(e), title='Error')
                 continue
@@ -149,16 +157,14 @@ def ConfigWindow() -> dict:
     settings['AutoAck'] = values['ACK']
 
     # Return the selected parameters as a dictionary.
-    config = {}
-    config['LogPort'] = settings['LogPort'] 
-    config['ZephyrPort'] = settings['ZephyrPort']
     config['Instrument'] = settings['Instrument']
     config['AutoAck'] = settings['AutoAck']
 
     # Print the selected parameters to the debug window.
     sg.Print("Instrument:", config['Instrument'])
-    sg.Print("Port:", config['LogPort'])
-    sg.Print("AutoAck:", config['AutoAck'])    
+    sg.Print("Zephyr Port:", config['ZephyrPort'])
+    sg.Print("Log Port:", config['LogPort'])
+    sg.Print("AutoAck:", config['AutoAck'])
 
     return config
 
@@ -180,10 +186,11 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
 
     # Command buttons and config values at the top of the window
     top_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
+    top_row.append(sg.Button('Suspend', size=(8,1), button_color=('white','orange')))
     top_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
 
-    log_port_text = sg.Text("Log port: " + config['LogPort'])
-    zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'])
+    log_port_text = sg.Text("Log port: " + config['LogPort'].name)
+    zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'].name)
     auto_ack_text = sg.Text("AutoAck: " + str(config['AutoAck']))
     top_row.append(log_port_text)
     top_row.append(zephyr_port_text)
@@ -255,6 +262,17 @@ def PollWindowEvents() -> None:
 
     if main_window_event in (None, 'Exit'):
         CloseAndExit()
+
+    if main_window_event in ('Suspend', 'Resume'):
+        # toggle the suspend state
+        SerialSuspend()
+        if serial_suspended:
+            main_window["Suspend"].update('Resume', button_color=('white','blue'))
+        else:
+            main_window["Suspend"].update('Suspend', button_color=('white','orange'))
+
+    if serial_suspended:
+        return
 
     if (popup_window_event in ('__TIMEOUT__', None))  and (main_window_event == '__TIMEOUT__'):
         return
@@ -484,3 +502,22 @@ def RunCommands() -> None:
             sg.Print("Bad window to wait on"+str(current_action))
             current_action = 'waiting'
             new_window = True
+
+def SerialSuspend() -> None:
+    '''Suspend the serial ports until suspend button is pressed again'''
+
+    global serial_suspended
+    global log_port
+    global zephyr_port
+
+    if not serial_suspended:
+        zephyr_port.close()
+        if zephyr_port.name != log_port.name:
+            log_port.close()
+        serial_suspended = True
+    else:
+        print("Resuming serial ports")
+        zephyr_port.open()
+        if zephyr_port.name != log_port.name:
+            log_port.open()
+        serial_suspended = False
