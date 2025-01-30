@@ -132,7 +132,7 @@ def main() -> None:
                     OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
                     OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(config['inst'], 'ACK', cmd_filename, config['ZephyrPort'])
+                    OBC_Sim_Generic.sendSAck(config['Instrument'], 'ACK', cmd_filename, config['ZephyrPort'])
                     OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
                     OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])

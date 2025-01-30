@@ -516,7 +516,6 @@ def SerialSuspend() -> None:
             log_port.close()
         serial_suspended = True
     else:
-        print("Resuming serial ports")
         zephyr_port.open()
         if zephyr_port.name != log_port.name:
             log_port.open()

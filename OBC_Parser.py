@@ -65,9 +65,20 @@ def HandleZephyrMessage(first_line: str) -> None:
     message = first_line + str(zephyr_port.read_until(b'</CRC>\n'), 'ascii')
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
-    msg_dict = xmltodict.parse(f'<MSG>{message}</MSG>')
-    msg_type = list(msg_dict["MSG"].keys())[0]
-    display = f'{msg_type:7s} {" ".join([key+":"+value+" " for (key,value) in msg_dict["MSG"][msg_type].items()])}\n'
+    msg_dict = xmltodict.parse(f'<XMLTOKEN>{message}</XMLTOKEN>')
+
+    if 'Msg' in msg_dict['XMLTOKEN']:
+        # Seems like LPC produces spurious 'Msg' tags. Print to the display, 
+        # and then remove them from msg_dict so that they don't interfere 
+        # with the parsing.
+        print('Removing spurious Msg tag', msg_dict['XMLTOKEN']['Msg'])
+        _, time, _, milliseconds = GetDateTime()
+        timestring = '[' + time + '.' + milliseconds + '] '
+        xml_queue.put(f'{timestring} {msg_dict["XMLTOKEN"]["Msg"]}\n')
+        del msg_dict['XMLTOKEN']['Msg']
+
+    msg_type = list(msg_dict["XMLTOKEN"].keys())[0]
+    display = f'{msg_type:7s} {msg_dict["XMLTOKEN"]}\n'
 
     # if TM, save payload
     if 'TM' == msg_type:
@@ -139,27 +150,29 @@ def ReadInstrument(
         # the suspend button is pressed. Thus the exception
         # handling is used to detect this.
 
-        new_line = None
+        new_line_log = None
+        new_line_zephyr = None
         # read a line from either the log port or zephyr port
         try:
             if log_port.is_open: 
                 if log_port.in_waiting:
-                    new_line = log_port.readline()
-            elif zephyr_port.is_open: 
+                    new_line_log = log_port.readline()
+            if zephyr_port.is_open: 
                 if zephyr_port.in_waiting:
-                    new_line = zephyr_port.readline()
+                    new_line_zephyr = zephyr_port.readline()
         except OSError as e:
             time.sleep(0.001)
             continue
 
-        if not new_line:
+        if not new_line_zephyr and not new_line_log:
             time.sleep(0.001)
             continue
 
-        # if the line contains a '<', it is a Zephyr message
-        if (-1 != new_line.find(b'<')):
-            HandleZephyrMessage(str(new_line,'ascii'))
-            pass
-        # otherwise, it is a log message
-        else:
-            HandleStratoLogMessage(str(new_line,'ascii'))
+        for new_line in [new_line_log, new_line_zephyr]:
+            if new_line is not None:
+                # if the line contains a '<', it is a Zephyr message
+                if (-1 != new_line.find(b'<')):
+                    HandleZephyrMessage(str(new_line,'ascii'))
+                # otherwise, it is a log message
+                else:
+                    HandleStratoLogMessage(str(new_line,'ascii'))
