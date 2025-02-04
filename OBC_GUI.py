@@ -210,7 +210,7 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
     # Main window layout
     widgets = [
         top_row,
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(45,30))]]),
          sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(120,30))]])]
     ]
 
