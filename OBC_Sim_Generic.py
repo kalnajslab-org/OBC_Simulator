@@ -20,6 +20,7 @@ from xml.dom import minidom
 from datetime import datetime
 from time import sleep
 
+msg_id_num = 1
 
 def GetTime() -> tuple:
     # create date and time strings
@@ -56,10 +57,13 @@ def prettify(xmlStr: ET.Element) -> str:
 
 
 def sendIM(instrument: str, InstrumentMode: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
+
     XML_IM = ET.Element('IM')
 
     msg_id = ET.SubElement(XML_IM,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_IM,'Inst')
     inst_id.text = instrument
@@ -85,10 +89,12 @@ def sendIM(instrument: str, InstrumentMode: str, filename: str, port: serial.Ser
 
 
 def sendGPS(zenith: float, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
 
     XML_GPS = ET.Element('GPS')
     msg_id = ET.SubElement(XML_GPS,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     date = ET.SubElement(XML_GPS,'Date')
     date.text = datetime.today().strftime('%Y/%m/%d')
@@ -135,11 +141,13 @@ def sendGPS(zenith: float, filename: str, port: serial.Serial) -> str:
 
 
 def sendTC(instrument: str, command: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
 
     XML_TC = ET.Element('TC')
 
     msg_id = ET.SubElement(XML_TC,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_TC,'Inst')
     inst_id.text = instrument
@@ -171,10 +179,13 @@ def sendTC(instrument: str, command: str, filename: str, port: serial.Serial) ->
 
 
 def sendSAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
+
     XML_TMAck = ET.Element('SAck')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_TMAck,'Inst')
     inst_id.text = instrument
@@ -199,11 +210,13 @@ def sendSAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> s
 
 
 def sendRAAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
 
     XML_RAAck = ET.Element('RAAck')
 
     msg_id = ET.SubElement(XML_RAAck,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_RAAck,'Inst')
     inst_id.text = instrument
@@ -228,10 +241,13 @@ def sendRAAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> 
 
 
 def sendTMAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
+
     XML_TMAck = ET.Element('TMAck')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_TMAck,'Inst')
     inst_id.text = instrument
@@ -256,10 +272,13 @@ def sendTMAck(instrument: str, ACK: str, filename: str, port: serial.Serial) -> 
 
 
 def sendSW(instrument: str, filename: str, port: serial.Serial) -> str:
+    global msg_id_num
+
     XML_TMAck = ET.Element('SW')
 
     msg_id = ET.SubElement(XML_TMAck,'Msg')
-    msg_id.text = '123'
+    msg_id.text = str(msg_id_num)
+    msg_id_num += 1
 
     inst_id = ET.SubElement(XML_TMAck,'Inst')
     inst_id.text = instrument

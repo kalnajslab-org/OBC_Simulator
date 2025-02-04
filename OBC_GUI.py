@@ -33,9 +33,10 @@ parameters are returned to the main program as a dictionary.
 
 # modules
 import os
-import time
+import queue
 import serial
 import glob
+import xmltodict
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
@@ -46,6 +47,7 @@ ZephyrInstModes = ['SB', 'FL', 'LP', 'SA', 'EF']
 # global window objects
 popup_window = None
 main_window = None
+xml_queue = None
 current_action = 'waiting'
 new_window = True
 
@@ -58,7 +60,7 @@ serial_suspended = False
 
 # set the overall look of the GUI
 sg.theme('SystemDefault')
-sg.set_options(font = ("Helvetica", 12))
+sg.set_options(font = ("Monaco", 11))
 
 def ConfigWindow() -> dict:
     '''Configuration window for the OBC simulator
@@ -138,11 +140,15 @@ def ConfigWindow() -> dict:
             log_port_name = log_port[0].replace('log_','')
             # Verify that the zephyr and log ports are both accessible
             try:
-                config['ZephyrPort'] = serial.Serial(zephyr_port_name, 115200)
+                config['ZephyrPort'] = serial.Serial(port=zephyr_port_name, baudrate=115200, timeout=0.001)
+                config['ZephyrPort'].reset_input_buffer()
                 if log_port_name != zephyr_port_name:
-                    config['LogPort'] = serial.Serial(log_port_name, 115200)
+                    config['LogPort'] = serial.Serial(port=log_port_name, baudrate=115200, timeout=0.001)
+                    config['LogPort'].reset_input_buffer()
+                    config['SharedPorts'] = False
                 else:
-                    config['LogPort'] = config['ZephyrPort']
+                    config['LogPort'] = None
+                    config['SharedPorts'] = True
             except Exception as e:
                 sg.popup('Error opening serial port: ' + str(e), title='Error')
                 continue
@@ -168,7 +174,7 @@ def ConfigWindow() -> dict:
 
     return config
 
-def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, cmd_fname: str) -> None:
+def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, cmd_fname: str, xmlqueue: queue.Queue) -> None:
     '''Main window for the OBC simulator
     
     It has control buttons at the top and two columns for log messages and Zephyr messages
@@ -178,18 +184,23 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
     global zephyr_port
     global instrument
     global cmd_filename
+    global xml_queue
 
     instrument = config['Instrument']
     log_port = logport
     zephyr_port = zephyrport
     cmd_filename = cmd_fname
+    xml_queue = xmlqueue
 
     # Command buttons and config values at the top of the window
     top_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
     top_row.append(sg.Button('Suspend', size=(8,1), button_color=('white','orange')))
     top_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
 
-    log_port_text = sg.Text("Log port: " + config['LogPort'].name)
+    if config['SharedPorts']:
+        log_port_text = sg.Text("Log port: " + zephyr_port.name)
+    else:
+        log_port_text = sg.Text("Log port: " + config['LogPort'].name)
     zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'].name)
     auto_ack_text = sg.Text("AutoAck: " + str(config['AutoAck']))
     top_row.append(log_port_text)
@@ -200,7 +211,7 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
     widgets = [
         top_row,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(50,30))]]),
-         sg.Column([[sg.Text('Zephyr Messages'           )], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(100,30))]])]
+         sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(120,30))]])]
     ]
 
     main_window = sg.Window(title=instrument, layout=widgets, location=(500, 100), finalize=True)
@@ -226,7 +237,9 @@ def AddZephyrMsg(message: str) -> None:
 
     global main_window
 
-    if -1 != message.find('TM') and -1 != message.find('CRIT'):
+    if -1 != message.find('(TO)'):
+        main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='blue', end="")
+    elif -1 != message.find('TM') and -1 != message.find('CRIT'):
         main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
     elif -1 != message.find('TM') and -1 != message.find('WARN'):
         main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='orange', end="")
@@ -319,7 +332,8 @@ def WaitIMPopup() -> None:
     # as long as cancel wasn't selected, set the mode
     if 'Cancel' != event:
         sg.Print(timestring + "Setting mode:", event)
-        OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, zephyr_port)
+        im_msg = OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, zephyr_port)
+        msg_to_queue(im_msg)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -362,7 +376,8 @@ def WaitGPSPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
-        OBC_Sim_Generic.sendGPS(sza, cmd_filename, zephyr_port)
+        msg = OBC_Sim_Generic.sendGPS(sza, cmd_filename, zephyr_port)
+        msg_to_queue(msg)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -402,7 +417,8 @@ def WaitTCPopup() -> None:
 
     if 'Submit' == event:
         sg.Print(timestring + "Sending TC:", values[0])
-        OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, zephyr_port)
+        msg = OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, zephyr_port)
+        msg_to_queue(msg)
 
     # go back to the message selector
     current_action = 'waiting'
@@ -413,21 +429,24 @@ def SAckMessage() -> None:
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
-    OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg = OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg_to_queue(msg)
 
 def RAAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
-    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg = OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg_to_queue(msg)
 
 def TMAckMessage() -> None:
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
-    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg = OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
+    msg_to_queue(msg)
 
 def CloseAndExit() -> None:
     global main_window, popup_window
@@ -502,6 +521,16 @@ def RunCommands() -> None:
             sg.Print("Bad window to wait on"+str(current_action))
             current_action = 'waiting'
             new_window = True
+
+def msg_to_queue(msg: str) -> None:
+    global xml_queue
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    # Add tags to make the message XML parsable
+    newmsg = '<XMLTOKEN>' + msg + '</XMLTOKEN>'
+    dict = xmltodict.parse(newmsg)
+    xml_queue.put(f'{timestring}  (TO) {dict["XMLTOKEN"]}\n')  
 
 def SerialSuspend() -> None:
     '''Suspend the serial ports until suspend button is pressed again'''

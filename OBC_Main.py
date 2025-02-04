@@ -25,8 +25,11 @@ Functions:
 # -*- coding: utf-8 -*-
 
 # modules
-import OBC_GUI, OBC_Parser, OBC_Sim_Generic
+import OBC_GUI
+import OBC_Parser
+import OBC_Sim_Generic
 import argparse
+import xmltodict
 
 # libraries
 import threading, serial, queue, os
@@ -78,6 +81,13 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     return args
 
+def msg_to_queue(q: queue.Queue, timestring: str, msg: str) -> None:
+    global xml_queue
+    # Add tags to make the message XML parsable
+    newmsg = '<XMLTOKEN>' + msg + '</XMLTOKEN>'
+    dict = xmltodict.parse(newmsg)
+    q.put(f'{timestring}  (TO) {dict["XMLTOKEN"]}\n')  
+
 def main() -> None:
     global instrument
 
@@ -99,7 +109,7 @@ def main() -> None:
     FileSetup()
 
     # start the main output window
-    OBC_GUI.MainWindow(config, logport=config['LogPort'], zephyrport=config['ZephyrPort'], cmd_fname=cmd_filename)
+    OBC_GUI.MainWindow(config, logport=config['LogPort'], zephyrport=config['ZephyrPort'], cmd_fname=cmd_filename, xmlqueue=xml_queue)
 
     # start listening for instrument messages over serial
     obc_parser_args=(
@@ -111,7 +121,8 @@ def main() -> None:
         xml_filename,
         tm_dir,
         instrument,
-        cmd_queue)
+        cmd_queue,
+        config)
     threading.Thread(target=OBC_Parser.ReadInstrument,args=obc_parser_args).start()
 
     while True:
@@ -129,13 +140,16 @@ def main() -> None:
                 time, millis = OBC_Sim_Generic.GetTime()
                 timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
-                    OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg = OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg_to_queue(xml_queue, timestring, msg)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent TMAck')
                 elif 'SAck' == cmd:
-                    OBC_Sim_Generic.sendSAck(config['Instrument'], 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg = OBC_Sim_Generic.sendSAck(config['Instrument'], 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg_to_queue(xml_queue, timestring, msg)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent SAck')
                 elif 'RAAck' == cmd:
-                    OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg = OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
+                    msg_to_queue(xml_queue, timestring, msg)
                     OBC_GUI.AddDebugMsg(timestring + 'Sent RAAck')
                 else:
                     OBC_GUI.AddDebugMsg('Unknown command', True)

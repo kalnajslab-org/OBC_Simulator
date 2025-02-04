@@ -62,27 +62,23 @@ def HandleStratoLogMessage(message: str) -> None:
         inst.write(message)
 
 def HandleZephyrMessage(first_line: str) -> None:
-    message = first_line + str(zephyr_port.read_until(b'</CRC>\n'), 'ascii')
+    next_lines = ''
+    while next_lines.find('</CRC>') == -1:
+        next_lines = next_lines + zephyr_port.readline().decode('ascii')
+    message = first_line + next_lines
+
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
     msg_dict = xmltodict.parse(f'<XMLTOKEN>{message}</XMLTOKEN>')
-
-    if 'Msg' in msg_dict['XMLTOKEN']:
-        # Seems like LPC produces spurious 'Msg' tags. Print to the display, 
-        # and then remove them from msg_dict so that they don't interfere 
-        # with the parsing.
-        print('Removing spurious Msg tag', msg_dict['XMLTOKEN']['Msg'])
-        _, time, _, milliseconds = GetDateTime()
-        timestring = '[' + time + '.' + milliseconds + '] '
-        xml_queue.put(f'{timestring} {msg_dict["XMLTOKEN"]["Msg"]}\n')
-        del msg_dict['XMLTOKEN']['Msg']
-
     msg_type = list(msg_dict["XMLTOKEN"].keys())[0]
-    display = f'{msg_type:7s} {msg_dict["XMLTOKEN"]}\n'
 
     # if TM, save payload
     if 'TM' == msg_type:
-        binary_section = zephyr_port.read_until(b'END')
+        # The binary section contains 'START<bytes><crc>END', where crc is 2 bytes
+        n_bytes = 10 + int(msg_dict["XMLTOKEN"]["TM"]["Length"])
+        binary_section = bytearray()
+        while len(binary_section) < n_bytes:
+            binary_section.extend(zephyr_port.read(n_bytes - len(binary_section)))
         WriteTMFile(message, binary_section)
         cmd_queue.put('TMAck')
     elif 'S' == msg_type:
@@ -95,7 +91,7 @@ def HandleZephyrMessage(first_line: str) -> None:
     timestring = '[' + time + '.' + milliseconds + '] '
 
     # place on the queue to be displayed in the GUI
-    display = timestring + display
+    display = f'{timestring} (FROM){msg_dict["XMLTOKEN"]}\n'
     xml_queue.put(display)
 
     # log to the file
@@ -121,7 +117,8 @@ def ReadInstrument(
     xml_filename_in: str,
     tm_dir_in: str,
     inst_in: str,
-    cmd_queue_in: queue.Queue) -> None:
+    cmd_queue_in: queue.Queue,
+    config: dict) -> None:
 
     global zephyr_port
     global log_port
@@ -144,35 +141,44 @@ def ReadInstrument(
     instrument = inst_in
     cmd_queue = cmd_queue_in
 
+    port_sharing = config['SharedPorts']
+
+    # main loop
     while True:
         # The zephyr and log ports are opened in OBC_Gui.
         # They can be opened/closed from the GUI, when
         # the suspend button is pressed. Thus the exception
         # handling is used to detect this.
 
-        new_line_log = None
-        new_line_zephyr = None
-        # read a line from either the log port or zephyr port
         try:
-            if log_port.is_open: 
-                if log_port.in_waiting:
-                    new_line_log = log_port.readline()
-            if zephyr_port.is_open: 
-                if zephyr_port.in_waiting:
-                    new_line_zephyr = zephyr_port.readline()
+            if not port_sharing:
+                if log_port.is_open: 
+                    new_log_line = log_port.readline()
+                    if new_log_line:
+                        HandleStratoLogMessage(str(new_log_line,'ascii'))
+                if zephyr_port.is_open: 
+                    new_zephyr_line = zephyr_port.readline()
+                    if new_zephyr_line:
+                        # skip the stratocore serial keepalive messages
+                        if new_zephyr_line != b'\n':
+                            HandleZephyrMessage(str(new_zephyr_line,'ascii'))
+            else:
+                # port sharing, so just read from zephyr port
+                if zephyr_port.is_open: 
+                    new_line = zephyr_port.readline()
+                    if new_line:
+                        # skip the stratocore serial keepalive messages
+                        if new_line != b'\n':
+                            # if the line contains a '<', it is a Zephyr message
+                            if (-1 != new_line.find(b'<')):
+                                HandleZephyrMessage(str(new_line,'ascii'))
+                            # otherwise, it is a log message
+                            else:
+                                HandleStratoLogMessage(str(new_line,'ascii'))
         except OSError as e:
-            time.sleep(0.001)
+            print('OSError:', e)
             continue
-
-        if not new_line_zephyr and not new_line_log:
-            time.sleep(0.001)
+        except TypeError as e:
+            # Happens when the port is closed
+            time.sleep(0.01)
             continue
-
-        for new_line in [new_line_log, new_line_zephyr]:
-            if new_line is not None:
-                # if the line contains a '<', it is a Zephyr message
-                if (-1 != new_line.find(b'<')):
-                    HandleZephyrMessage(str(new_line,'ascii'))
-                # otherwise, it is a log message
-                else:
-                    HandleStratoLogMessage(str(new_line,'ascii'))
