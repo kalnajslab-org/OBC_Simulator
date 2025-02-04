@@ -176,9 +176,15 @@ def ReadInstrument(
                             else:
                                 HandleStratoLogMessage(str(new_line,'ascii'))
         except OSError as e:
+            # Happens when the port is closed
+            # It's lame to catch this exception at the top level, but seems to be the only way to detect
+            # that the port is closed from the gui thread. Should find a way to do this more elegantly.
             print('OSError:', e)
+            time.sleep(0.01)
             continue
         except TypeError as e:
             # Happens when the port is closed
+            # It's lame to catch this exception at the top level, but seems to be the only way to detect
+            # that the port is closed from the gui thread. Should find a way to do this more elegantly.
             time.sleep(0.01)
             continue
