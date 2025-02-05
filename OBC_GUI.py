@@ -35,6 +35,7 @@ parameters are returned to the main program as a dictionary.
 import os
 import queue
 import serial
+import serial.tools.list_ports
 import glob
 import xmltodict
 import PySimpleGUIQt as sg
@@ -79,11 +80,16 @@ def ConfigWindow() -> dict:
     auto_ack = settings.get('AutoAck', True)
 
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
+    window_sizes = ['Small', 'Medium', 'Large']
+    window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
+                     'Medium': {'font_size': 10, 'width': 120, 'height': 30},
+                     'Large': {'font_size': 12, 'width': 160, 'height': 40}} 
 
     # Find all of the appropriate serial ports.
-    ports = glob.glob('/dev/cu.*')
-    ports.remove('/dev/cu.Bluetooth-Incoming-Port')
-
+    ports = [port.device for port in serial.tools.list_ports.comports()]
+    # delete ports with Bluetooth in the name
+    ports = [port for port in ports if 'Bluetooth' not in port]
+    
     # Loop until all parameters are specified
     config = {}
     config_values_validated = False
@@ -92,6 +98,10 @@ def ConfigWindow() -> dict:
         # Create radio buttons for instruments and set the default to the saved instrument (if it exists).
         radio_instruments = [sg.Radio(i, group_id="radio_instruments", key=i, default=(settings.get('Instrument', False)==i)) for i in instruments]
         radio_instruments.insert(0, sg.Text('Instrument:'))
+
+        # Create radio buttons for the overall window size and set the default to the saved size (if it exists).
+        radio_window_size = [sg.Radio(s, group_id="radio_window_size", key=s, default=(s==settings.get('WindowSize', 'Medium'))) for s in window_sizes]
+        radio_window_size.insert(0, sg.Text('Window size:'))
 
         # Create radio buttons for zephyr ports and set the default to the saved port (if it exists). 
         # The key is prefixed with 'zephyr_' to differentiate it from the log ports.
@@ -107,6 +117,8 @@ def ConfigWindow() -> dict:
         layout = [
             [sg.Text('Settings file: ' + settings.full_filename)],
             [sg.Text(" ")],
+            radio_window_size,
+            [sg.Text(" ")],
             radio_instruments,
             [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
             [sg.Text('Automatically respond with ACKs?'), 
@@ -116,6 +128,7 @@ def ConfigWindow() -> dict:
             [sg.Text("- Select the same Log and Zephyr ports when StratoCore<INST> is")],
             [sg.Text("  compiled for port sharing or when the log port is not used. -")],
             [sg.Column(radio_zephyr_ports), sg.Column(radio_log_ports)],
+            [sg.Text(" ")],
             [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
             sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
 
@@ -133,6 +146,9 @@ def ConfigWindow() -> dict:
         instrument = [i for i in instruments if values[i] == True]
         if instrument:
             instrument = instrument[0]
+        window_size = [i for i in window_sizes if values[i] == True]
+        if window_size:
+            window_size = window_size[0]
 
         # Verify the selections.
         if zephyr_port and log_port and instrument:
@@ -161,10 +177,12 @@ def ConfigWindow() -> dict:
     settings['LogPort'] = log_port[0].replace('log_','')
     settings['Instrument'] = instrument
     settings['AutoAck'] = values['ACK']
+    settings['WindowSize'] = window_size
 
     # Return the selected parameters as a dictionary.
     config['Instrument'] = settings['Instrument']
     config['AutoAck'] = settings['AutoAck']
+    config['WindowParams'] = window_params[window_size]
 
     # Print the selected parameters to the debug window.
     sg.Print("Instrument:", config['Instrument'])
@@ -208,13 +226,17 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
     top_row.append(auto_ack_text)
 
     # Main window layout
+    sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
+    w = config['WindowParams']['width']
+    h = config['WindowParams']['height']
     widgets = [
         top_row,
-        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(45,30))]]),
-         sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(120,30))]])]
+        [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
+         sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])]
     ]
 
-    main_window = sg.Window(title=instrument, layout=widgets, location=(500, 100), finalize=True)
+
+    main_window = sg.Window(title=instrument, layout=widgets, location=(10, 10), finalize=True)
 
 def AddLogMsg(message: str) -> None:
     '''Add a message to the log window
@@ -541,11 +563,11 @@ def SerialSuspend() -> None:
 
     if not serial_suspended:
         zephyr_port.close()
-        if zephyr_port.name != log_port.name:
+        if log_port and zephyr_port.name != log_port.name:
             log_port.close()
         serial_suspended = True
     else:
         zephyr_port.open()
-        if zephyr_port.name != log_port.name:
+        if log_port and zephyr_port.name != log_port.name:
             log_port.open()
         serial_suspended = False
