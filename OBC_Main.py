@@ -28,6 +28,7 @@ Functions:
 import OBC_GUI
 import OBC_Parser
 import OBC_Sim_Generic
+import os
 import argparse
 import xmltodict
 
@@ -110,6 +111,9 @@ def main() -> None:
 
     # start the main output window
     OBC_GUI.MainWindow(config, logport=config['LogPort'], zephyrport=config['ZephyrPort'], cmd_fname=cmd_filename, xmlqueue=xml_queue)
+
+    # Set the tm filename
+    OBC_GUI.SetTmDir(os.getcwd()+'/'+tm_dir)
 
     # start listening for instrument messages over serial
     obc_parser_args=(

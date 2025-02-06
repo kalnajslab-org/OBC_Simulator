@@ -211,9 +211,9 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
     xml_queue = xmlqueue
 
     # Command buttons and config values at the top of the window
-    top_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
-    top_row.append(sg.Button('Suspend', size=(8,1), button_color=('white','orange')))
-    top_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
+    button_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
+    button_row.append(sg.Button('Suspend', size=(8,1), button_color=('white','orange')))
+    button_row.append(sg.Button('Exit', size=(8,1), button_color=('white','red')))
 
     if config['SharedPorts']:
         log_port_text = sg.Text("Log port: " + zephyr_port.name)
@@ -221,20 +221,25 @@ def MainWindow(config: dict, logport: serial.Serial, zephyrport: serial.Serial, 
         log_port_text = sg.Text("Log port: " + config['LogPort'].name)
     zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'].name)
     auto_ack_text = sg.Text("AutoAck: " + str(config['AutoAck']))
-    top_row.append(log_port_text)
-    top_row.append(zephyr_port_text)
-    top_row.append(auto_ack_text)
+    config_row = []
+    config_row.append(log_port_text)
+    config_row.append(zephyr_port_text)
+    config_row.append(auto_ack_text)
+    files_row = []
+    files_row.append(sg.Text("TM directory:"))
+    files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
 
     # Main window layout
     sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
     w = config['WindowParams']['width']
     h = config['WindowParams']['height']
     widgets = [
-        top_row,
+        button_row,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
-         sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])]
+         sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])],
+        config_row,
+        files_row
     ]
-
 
     main_window = sg.Window(title=instrument, layout=widgets, location=(10, 10), finalize=True)
 
@@ -571,3 +576,7 @@ def SerialSuspend() -> None:
         if log_port and zephyr_port.name != log_port.name:
             log_port.open()
         serial_suspended = False
+
+def SetTmDir(filename: str) -> None:
+    global main_window
+    main_window['-tm_directory-'].update(filename)
