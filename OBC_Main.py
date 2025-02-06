@@ -42,16 +42,20 @@ xml_filename = ''
 cmd_filename = ''
 tm_dir = ''
 
-def FileSetup() -> None:
-    global inst_filename, xml_filename, cmd_filename, tm_dir
+def FileSetup(config:dict) -> None:
+    global inst_filename
+    global xml_filename
+    global cmd_filename
+    global tm_dir
 
     # create date and time strings for file creation
     date, start_time, start_time_file, _ = OBC_Parser.GetDateTime()
 
     # create the output directory structure for the session
-    if not os.path.exists("sessions"):
-        os.mkdir("sessions")
-    output_dir = "sessions/" + instrument + "_" + date + "_" + start_time_file
+    data_dir = config['DataDirectory']+'/'
+    if not os.path.exists(data_dir):
+        os.mkdir(data_dir)
+    output_dir = data_dir + instrument + "_" + date + "_" + start_time_file
     os.mkdir(output_dir)
 
     # create a directory for individual TM messages
@@ -107,13 +111,13 @@ def main() -> None:
     auto_ack = config['AutoAck']
 
     # set up the files and structure
-    FileSetup()
+    FileSetup(config)
 
     # start the main output window
     OBC_GUI.MainWindow(config, logport=config['LogPort'], zephyrport=config['ZephyrPort'], cmd_fname=cmd_filename, xmlqueue=xml_queue)
 
     # Set the tm filename
-    OBC_GUI.SetTmDir(os.getcwd()+'/'+tm_dir)
+    OBC_GUI.SetTmDir(tm_dir)
 
     # start listening for instrument messages over serial
     obc_parser_args=(

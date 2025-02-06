@@ -66,11 +66,28 @@ sg.set_options(font = ("Monaco", 11))
 def ConfigWindow() -> dict:
     '''Configuration window for the OBC simulator
 
-    A dictionary is returned with the following keys:
-    inst(str): the instrument type
-    serial(str): the serial port name connected to the instrument log port
-    auto_ack(bool): whether to automatically respond with ACKs
-    
+    Persistent settings are loaded from a JSON file in the user's home directory.
+    The user can change the settings. The selected settings are saved to the JSON file,
+    and returned as a dictionary. There is not a one-to-one correspondence between the
+    settings and the returned dictionary.
+
+    The settings contains the following:    
+    'ZephyrPort': the serial port object for the Zephyr port
+    'LogPort': the serial port object for the log port, or None if shared with Zephyr port
+    'SharedPorts': whether the Zephyr and log ports are shared
+    'Instrument': the instrument type
+    'AutoAck': whether to automatically respond with ACKs
+    'WindowSize': the size of the window (Small, Medium, Large)
+    'DataDirectory': the directory for data storage
+
+    The returned dictionary contains the following:
+    ZephyrPort(serial.Serial): the serial port object for the Zephyr port
+    LogPort(serial.Serial or None): the serial port object for the log port, or None if shared with Zephyr port
+    SharedPorts(bool): whether the Zephyr and log ports are shared
+    Instrument(str): the instrument type
+    AutoAck(bool): whether to automatically respond with ACKs
+    WindowParams(dict): parameters for the window size (font_size, width, height)
+    DataDirectory(str): the directory for data storage
     '''
 
     # Load the saved settings from the settings file.
@@ -117,24 +134,32 @@ def ConfigWindow() -> dict:
         layout = [
             [sg.Text('Settings file: ' + settings.full_filename)],
             [sg.Text(" ")],
+            [sg.Text("Data Directory:"),
+             sg.Text(settings.get('DataDirectory', os.getcwd()+'/')), 
+             sg.Button('Select', button_color=('white','blue'))],
             radio_window_size,
             [sg.Text(" ")],
             radio_instruments,
             [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
             [sg.Text('Automatically respond with ACKs?'), 
-            sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
-            sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
+             sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
+             sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
             [sg.Text(" ")],
             [sg.Text("- Select the same Log and Zephyr ports when StratoCore<INST> is")],
             [sg.Text("  compiled for port sharing or when the log port is not used. -")],
             [sg.Column(radio_zephyr_ports), sg.Column(radio_log_ports)],
             [sg.Text(" ")],
             [sg.Button('Continue', size=(8,1), button_color=('white','blue')),
-            sg.Button('Exit', size=(8,1), button_color=('white','red'))]]
+             sg.Button('Exit', size=(8,1), button_color=('white','red'))
+            ]
+        ]
 
         window = sg.Window('Configure', layout)
         event, values = window.read()
         window.close()
+        if event in ('Select'):
+            settings['DataDirectory'] = sg.popup_get_folder('Select the data directory')
+            continue
 
         # quit the program if the window is closed or Exit selected
         if event in (None, 'Exit'):
@@ -183,6 +208,7 @@ def ConfigWindow() -> dict:
     config['Instrument'] = settings['Instrument']
     config['AutoAck'] = settings['AutoAck']
     config['WindowParams'] = window_params[window_size]
+    config['DataDirectory'] = settings['DataDirectory']
 
     # Print the selected parameters to the debug window.
     sg.Print("Instrument:", config['Instrument'])
