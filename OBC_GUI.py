@@ -247,11 +247,11 @@ def ConfigWindow() -> dict:
                 config['ZephyrPort'] = serial.Serial(port=zephyr_port_name, baudrate=115200, timeout=0.001)
                 config['ZephyrPort'].reset_input_buffer()
                 settings[config_set]['ZephyrPort'] = zephyr_port[0].replace('zephyr_','')
+                settings[config_set]['LogPort'] = log_port[0].replace('log_','')
                 if log_port_name != zephyr_port_name:
                     config['LogPort'] = serial.Serial(port=log_port_name, baudrate=115200, timeout=0.001)
                     config['LogPort'].reset_input_buffer()
                     config['SharedPorts'] = False
-                    settings[config_set]['LogPort'] = log_port[0].replace('log_','')
                 else:
                     config['LogPort'] = None
                     config['SharedPorts'] = True
