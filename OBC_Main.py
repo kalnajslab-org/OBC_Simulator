@@ -31,6 +31,7 @@ import OBC_Sim_Generic
 import os
 import argparse
 import xmltodict
+import datetime
 
 # libraries
 import threading, serial, queue, os
@@ -133,9 +134,24 @@ def main() -> None:
         config)
     threading.Thread(target=OBC_Parser.ReadInstrument,args=obc_parser_args).start()
 
+    # Wait 10 seconds before sending GPS messages
+    last_gps_timestamp = datetime.datetime.now().timestamp() - 50
+    # Perhaps this should be a configuration option
+    sza = 120
+
     while True:
         # run command GUI
         OBC_GUI.RunCommands()
+
+        current_time, millis = OBC_Sim_Generic.GetTime()
+        timestring = '[' + current_time + '.' + millis + '] '
+
+        # send GPS messages every 60 seconds
+        now_timestamp = datetime.datetime.now().timestamp()
+        if config["AutoGPS"] and now_timestamp - last_gps_timestamp >= 60:
+            last_gps_timestamp = now_timestamp
+            gps_msg = OBC_Sim_Generic.sendGPS(sza, cmd_filename, config['ZephyrPort'])
+            msg_to_queue(xml_queue, timestring, gps_msg)
 
         # handle instrument queues
         if not inst_queue.empty():
@@ -145,8 +161,6 @@ def main() -> None:
         if not cmd_queue.empty():
             cmd = cmd_queue.get()
             if auto_ack:
-                time, millis = OBC_Sim_Generic.GetTime()
-                timestring = '[' + time + '.' + millis + '] '
                 if 'TMAck' == cmd:
                     msg = OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
                     msg_to_queue(xml_queue, timestring, msg)

@@ -76,6 +76,7 @@ def ConfigWindow() -> dict:
     'LogPort': the serial port object for the log port, or None if shared with Zephyr port
     'Instrument': the instrument type
     'AutoAck': whether to automatically respond with ACKs
+    'AutoGPS': whether to automatically send GPS
     'WindowSize': the size of the window (Small, Medium, Large)
     'DataDirectory': the directory for data storage
 
@@ -85,6 +86,7 @@ def ConfigWindow() -> dict:
     SharedPorts(bool): whether the Zephyr and log ports are shared
     Instrument(str): the instrument type
     AutoAck(bool): whether to automatically respond with ACKs
+    AutoGPS(bool): whether to automatically send GPS
     WindowParams(dict): parameters for the window size (font_size, width, height)
     DataDirectory(str): the directory for data storage
     ConfigSet(str): the name of the configuration set
@@ -95,25 +97,27 @@ def ConfigWindow() -> dict:
         settings['-Main-']['SelectedConfig'] = 'NewSet' # default to the first configuration set
 
     # Create a list of settings keys. This will need to be updated if new settings are added.
-    settings_keys = ['ZephyrPort', 'LogPort', 'Instrument', 'AutoAck', 'WindowSize', 'DataDirectory']
+    settings_keys = ['ZephyrPort', 'LogPort', 'Instrument', 'AutoAck', 'AutoGPS', 'WindowSize', 'DataDirectory', ]
+
+    instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
+    window_sizes = ['Small', 'Medium', 'Large']
+    window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
+                    'Medium': {'font_size': 10, 'width': 120, 'height': 30},
+                    'Large': {'font_size': 12, 'width': 160, 'height': 40}} 
 
     # Loop until all parameters are specified
     config = {}
     config_values_validated = False
     while not config_values_validated:
-        # Get the current settings. Default values are used if the settings are not found.
+        # Get the current settings. Default values are used if the setting is not found.
         settings = sg.UserSettings(filename='OBC_Simulator.ini', use_config_file=True, path=os.path.abspath(os.path.expanduser("~/")))
         config_set = settings['-Main-'].get('SelectedConfig', 'NewSet')
+        data_dir = settings[config_set].get('DataDirectory', None)
+        auto_ack = settings[config_set].get('AutoAck', True)
+        auto_gps = settings[config_set].get('AutoGPS', True)
+        window_size = settings[config_set].get('WindowSize', 'Medium')
         zephyr_port = settings[config_set].get('ZephyrPort', 'None')
         log_port = settings[config_set].get('LogPort', 'None')
-        auto_ack = settings[config_set].get('AutoAck', True)
-        data_dir = settings[config_set].get('DataDirectory', None)
-
-        instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
-        window_sizes = ['Small', 'Medium', 'Large']
-        window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
-                        'Medium': {'font_size': 10, 'width': 120, 'height': 30},
-                        'Large': {'font_size': 12, 'width': 160, 'height': 40}} 
 
         # Find all of the appropriate serial ports.
         ports = [port.device for port in serial.tools.list_ports.comports()]
@@ -157,8 +161,12 @@ def ConfigWindow() -> dict:
             radio_instruments,
             [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
             [sg.Text('Automatically respond with ACKs?'), 
-              sg.Radio('Yes',group_id=2,key='ACK',default=auto_ack), 
-              sg.Radio('No',group_id=2,key='NOACK',default=not auto_ack)],
+              sg.Radio('Yes', group_id='-ack-group-',key='-auto-ack-',default=auto_ack), 
+              sg.Radio('No', group_id='-ack-group-',key='-no-auto-ack-',default=not auto_ack)],
+              [sg.Text(" "), sg.Text(" "), sg.Text(" ")],
+            [sg.Text('Automatically send GPS?'), 
+              sg.Radio('Yes',group_id='-gps-group-',key='-auto-gps-',default=auto_gps), 
+              sg.Radio('No',group_id='-gps-group-',key='-no-auto-gps',default=not auto_gps)],
             [sg.Text(" ")],
             [sg.Text("- Select the same Log and Zephyr ports when StratoCore<INST> is")],
             [sg.Text("  compiled for port sharing or when the log port is not used. -")],
@@ -251,7 +259,8 @@ def ConfigWindow() -> dict:
             instrument = instrument[0]
             settings[config_set]['Instrument'] = instrument
 
-        settings[config_set]['AutoAck'] = values['ACK']
+        settings[config_set]['AutoAck'] = values['-auto-ack-']
+        settings[config_set]['AutoGPS'] = values['-auto-gps-']
 
         window_size = [i for i in window_sizes if values[i] == True]
         if window_size:
@@ -286,6 +295,7 @@ def ConfigWindow() -> dict:
     # Return the selected parameters as a dictionary.
     config['Instrument'] = settings[config_set]['Instrument']
     config['AutoAck'] = settings[config_set]['AutoAck']
+    config['AutoGPS'] = settings[config_set]['AutoGPS']
     config['WindowParams'] = window_params[window_size]
     config['DataDirectory'] = settings[config_set]['DataDirectory']
     config['ConfigSet'] = config_set
@@ -339,20 +349,22 @@ def MainWindow(
     button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange')))
     button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red')))
 
-    config_set_text = sg.Text("Configuration set: " + config['ConfigSet'])
+    config_set_text = sg.Text("Configuration set:" + config['ConfigSet'])
     if config['SharedPorts']:
-        log_port_text = sg.Text("Log port: " + zephyr_port.name)
+        log_port_text = sg.Text("Log port:" + zephyr_port.name)
     else:
-        log_port_text = sg.Text("Log port: " + config['LogPort'].name)
-    zephyr_port_text = sg.Text("Zephyr port: " + config['ZephyrPort'].name)
-    auto_ack_text = sg.Text("AutoAck: " + str(config['AutoAck']))
+        log_port_text = sg.Text("Log port:" + config['LogPort'].name)
+    zephyr_port_text = sg.Text("Zephyr port:" + config['ZephyrPort'].name)
+    auto_ack_text = sg.Text("AutoAck:" + str(config['AutoAck']))
+    auto_gps_text = sg.Text("AutoGPS:" + str(config['AutoGPS']))
     config_row = []
     config_row.append(config_set_text)
     config_row.append(log_port_text)
     config_row.append(zephyr_port_text)
     config_row.append(auto_ack_text)
+    config_row.append(auto_gps_text)
     files_row = []
-    files_row.append(sg.Text("TM directory:"))
+    files_row.append(sg.Text("TM directory"))
     files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
 
     # Main window layout
