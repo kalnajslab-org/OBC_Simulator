@@ -101,11 +101,13 @@ def ConfigWindow() -> dict:
     config = {}
     config_values_validated = False
     while not config_values_validated:
+        # Get the current settings. Default values are used if the settings are not found.
         settings = sg.UserSettings(filename='OBC_Simulator.ini', use_config_file=True, path=os.path.abspath(os.path.expanduser("~/")))
-        config_set = settings['-Main-'].get('SelectedConfig', '1')
+        config_set = settings['-Main-'].get('SelectedConfig', 'NewSet')
         zephyr_port = settings[config_set].get('ZephyrPort', 'None')
         log_port = settings[config_set].get('LogPort', 'None')
         auto_ack = settings[config_set].get('AutoAck', True)
+        data_dir = settings[config_set].get('DataDirectory', None)
 
         instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
         window_sizes = ['Small', 'Medium', 'Large']
@@ -141,13 +143,14 @@ def ConfigWindow() -> dict:
             [sg.Text('Settings file: ' + settings.full_filename)],
             [sg.Text(" ")],
             [sg.Text("Data Directory:"),
-              sg.Text(settings[config_set].get('DataDirectory', os.getcwd()+'/')), 
+              sg.Text(data_dir), 
               sg.Button('Select', key='-select-data-dir-', button_color=('white','blue'))],
             [sg.Text(" ")],
             [sg.Text("Configuration set:"), sg.Text(config_set),
               sg.Button('Select', key='-popup-select-config-', button_color=('white','blue')),
-              sg.Button('Delete', key='-popup-delete-config-', button_color=('white','blue')),
-              sg.Button('New', key='-popup-new-config-', button_color=('white','blue'))],
+              sg.Button('Rename', key='-popup-rename-config-', button_color=('white','blue')),
+              sg.Button('New',    key='-popup-new-config-',    button_color=('white','blue')),
+              sg.Button('Delete', key='-popup-delete-config-', button_color=('white','blue'))],
             [sg.Text(" ")],
             radio_window_size,
             [sg.Text(" ")],
@@ -187,6 +190,37 @@ def ConfigWindow() -> dict:
             settings['-Main-']['SelectedConfig'] = config_values['-config_set-']
             continue
 
+        if event in ('-popup-rename-config-'):
+            new_set_name = sg.popup_get_text('Enter the  new name of the new configuration set')
+            if new_set_name in (None, ''):
+                continue
+            if not new_set_name.isprintable():
+                sg.popup('Configuration set name must be printable', title='Error')
+                continue
+            # Copy current settings to a new config set
+            for key in settings_keys:
+                settings[new_set_name][key] = settings[config_set][key]
+            # delete the old config set
+            try:
+                settings.delete_section(config_set)
+            except KeyError:
+                pass
+            settings['-Main-']['SelectedConfig'] = new_set_name
+            continue
+
+        if event in ('-popup-new-config-'):
+            new_config_set = sg.popup_get_text('Enter the name of the new configuration set')
+            if new_config_set in (None, ''):
+                continue
+            if not new_config_set.isprintable():
+                sg.popup('Configuration set name must be printable', title='Error')
+                continue
+            settings['-Main-']['SelectedConfig'] = new_config_set
+            # Copy current settings to new config set
+            for key in settings_keys:
+                settings[new_config_set][key] = settings[config_set][key]
+            continue
+
         if event in ('-popup-delete-config-'):
             popup_layout = [[sg.Text("Do you want to delete the configuration set: " + config_set + "?")],
                                  [sg.Button('Yes', key='-delete-yes-', button_color=('white','blue')),
@@ -205,19 +239,6 @@ def ConfigWindow() -> dict:
                     settings['-Main-']['SelectedConfig'] = configs[0]
                 else:
                     sg.popup('Cannot delete the last configuration set', title='Error')
-            continue
-
-        if event in ('-popup-new-config-'):
-            new_config_set = sg.popup_get_text('Enter the name of the new configuration set')
-            if new_config_set in (None, ''):
-                continue
-            if not new_config_set.isprintable():
-                sg.popup('Configuration set name must be printable', title='Error')
-                continue
-            settings['-Main-']['SelectedConfig'] = new_config_set
-            # Copy current settings to new config set
-            for key in settings_keys:
-                settings[new_config_set][key] = settings[config_set][key]
             continue
 
         # Process close and exit events
