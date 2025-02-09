@@ -142,14 +142,16 @@ def ConfigWindow() -> dict:
         radio_log_ports = [[sg.Radio(p, group_id="radio_log_ports", key="log_"+p, default=(p==log_port))] for p in ports]
         radio_log_ports.insert(0, [sg.Text('Log port:')])
 
+        config_manage = [sg.Text("Configuration set:"), sg.Text(config_set),
+            sg.Button('Select', key='-popup-select-config-', button_color=('white','blue')),
+            sg.Button('Rename', key='-popup-rename-config-', button_color=('white','blue')),
+            sg.Button('New',    key='-popup-new-config-',    button_color=('white','blue')),
+            sg.Button('Delete', key='-popup-delete-config-', button_color=('white','blue'))]
+
         # Create the layout for the configuration window
         layout = [
+            config_manage,
             radio_instruments,
-            [sg.Text("Configuration set:"), sg.Text(config_set),
-              sg.Button('Select', key='-popup-select-config-', button_color=('white','blue')),
-              sg.Button('Rename', key='-popup-rename-config-', button_color=('white','blue')),
-              sg.Button('New',    key='-popup-new-config-',    button_color=('white','blue')),
-              sg.Button('Delete', key='-popup-delete-config-', button_color=('white','blue'))],
             [sg.Text('Settings file: ' + settings.full_filename)],
             [sg.Text("Data Directory:"),
               sg.Text(data_dir), 
