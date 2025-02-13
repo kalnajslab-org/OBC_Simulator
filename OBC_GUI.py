@@ -102,8 +102,8 @@ def ConfigWindow() -> dict:
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
     window_sizes = ['Small', 'Medium', 'Large']
     window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
-                    'Medium': {'font_size': 10, 'width': 120, 'height': 30},
-                    'Large': {'font_size': 12, 'width': 160, 'height': 40}} 
+                    'Medium': {'font_size': 10, 'width': 140, 'height': 30},
+                    'Large': {'font_size': 12, 'width': 180, 'height': 40}} 
 
     # Loop until all parameters are specified
     config = {}
