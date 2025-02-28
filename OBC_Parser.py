@@ -69,7 +69,12 @@ def HandleZephyrMessage(first_line: str) -> None:
 
     # The message is not correct XML, since it doesn't have opening/closing
     # tokens. Add some tokens so that it can be parsed.
-    msg_dict = xmltodict.parse(f'<XMLTOKEN>{message}</XMLTOKEN>')
+    try:
+        msg_dict = xmltodict.parse(f'<XMLTOKEN>{message}</XMLTOKEN>')
+    except Exception as e:
+        print('Error parsing XML:', e)
+        print('Message:', message)
+        return
     msg_type = list(msg_dict["XMLTOKEN"].keys())[0]
 
     # if TM, save payload
