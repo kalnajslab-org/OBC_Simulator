@@ -2,29 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """ 
-This module provides a GUI for the OBC simulator. 
+This module provides the GUI for the OBC simulator. 
 
 ConfigWindow() is called to prompt for configuration.
 
 MainWindow() is called to create the main window.
-It contains buttons for each type of message that can be sent, 
-and two columns for log messages and Zephyr messages. 
-The buttons either send a message  directly (e.g. TMAck), 
-or open a popup window (e.g. IM) to configure and send a message.
 
-LogAddMsg() and ZephyrAddMsg() are called to add messages to the 
-log and Zephyr message columns.
+LogAddMsg() and ZephyrAddMsg() are called to add messages to the log and Zephyr message displays.
 
-The main window is referenced by the global variable: main_window.
-
-In order to handle UI events and received messages, a polling mechanism is used.
-RunCommands() is called by the program main loop, and handles UI activities.
-Popup windows are created by Show..Popup(), Wait..Popup(), etc.
-The popup windows are all assigned to the global variable: popup_window.
-
-WaitMessageSelection() is called from RunCommands() to check for button presses.
-This function calls both main_window.read() and popup_window.read() to check 
-for button press events.
+PollWindowEvents() is called from the main program loop to poll the main window for events.
 
 SimplePyGUIQt.UserSettings is used to persist the configuration parameters.
 These are stored in a JSON file in the user's home directory. The config
@@ -41,17 +27,15 @@ import xmltodict
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
-# message types and tooltips
-ZephyrMessageTypes = [
-    ('GPS',  'Send a GPS message'), 
+# Zephyr messages with no parameters, and their tooltips
+ZephyrMessagesNoParams = [
     ('SW',   'Send a Shutdown Warning'), 
-    ('TC',   'Send a Telecommand'), 
     ('SAck', 'Send a Safety Ack'), 
     ('RAAck', 'Send a RAA Ack'), 
     ('TMAck', 'Send a TM Ack')
 ]
 
-# Instrument modes and tooltips
+# Instrument modes, and their tooltips
 ZephyrInstModes = [
     ('SB','Standby Mode'),
     ('FL','Flight Mode'), 
@@ -59,15 +43,10 @@ ZephyrInstModes = [
     ('SA','Safety Mode'),
     ('EF','End of Flight Mode')]
 
-
-# global window objects
-popup_window = None
+# set global variables
 main_window = None
 xml_queue = None
-current_action = 'waiting'
 new_window = True
-
-# global variables
 log_port = None
 zephyr_port = None
 cmd_filename = ''
@@ -355,17 +334,37 @@ def MainWindow(
     cmd_filename = cmd_fname
     xml_queue = xmlqueue
 
+    sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
+    w = config['WindowParams']['width']
+    h = config['WindowParams']['height']
+
     # Command buttons and config values at the top of the window
     button_row = []
+
+    # Instrument modes
     for b,t in ZephyrInstModes:
         button_row.append(sg.Button(b, size=(6,1), button_color=('black','lightblue'),tooltip=t))
+
+    # Zephyr msgs which carry parameters
     button_row.append(sg.Text(' '))
-    for b, t in ZephyrMessageTypes:
+    button_row.append(sg.Button('TC', key='TC', size=(6,1), button_color=('black','green'), tooltip='Send Telecommand'))
+    button_row.append(sg.InputText('', key='-tc-text-', size=(6,1), text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
+
+    button_row.append(sg.Text(' '))
+    button_row.append(sg.Button('GPS', key='GPS', size=(6,1), button_color=('black','green'), tooltip='Send GPS'))
+    button_row.append(sg.InputText('120.0', key='-gps-text-', size=(6,1), text_color='black', background_color='white', tooltip='GPS SZA value'))
+
+    # Zephyr msgs with no parameters
+    button_row.append(sg.Text(' '))
+    for b, t in ZephyrMessagesNoParams:
         button_row.append(sg.Button(b, size=(6,1), tooltip=t))
+
+    # Suspend and Exit buttons
     button_row.append(sg.Text(' '))
     button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange'), tooltip='Suspend/Resume serial ports'))
     button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red'), tooltip='Exit the application'))
 
+    # Configuration settings and file paths
     config_set_text = sg.Text("Configuration set:" + config['ConfigSet'])
     if config['SharedPorts']:
         log_port_text = sg.Text("Log port:" + zephyr_port.name)
@@ -374,6 +373,7 @@ def MainWindow(
     zephyr_port_text = sg.Text("Zephyr port:" + config['ZephyrPort'].name)
     auto_ack_text = sg.Text("AutoAck:" + str(config['AutoAck']))
     auto_gps_text = sg.Text("AutoGPS:" + str(config['AutoGPS']))
+
     config_row = []
     config_row.append(config_set_text)
     config_row.append(log_port_text)
@@ -384,10 +384,6 @@ def MainWindow(
     files_row.append(sg.Text("TM directory"))
     files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
 
-    # Main window layout
-    sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
-    w = config['WindowParams']['width']
-    h = config['WindowParams']['height']
     widgets = [
         button_row,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
@@ -396,9 +392,9 @@ def MainWindow(
         files_row
     ]
 
-    main_window = sg.Window(title=instrument, layout=widgets, location=(10, 10), finalize=True)
+    main_window = sg.Window(title=instrument, layout=widgets, finalize=True)
 
-def AddLogMsg(message: str) -> None:
+def AddMsgToLogDisplay(message: str) -> None:
     """
     Add a message to the log window.
     If the message contains 'ERR: ', the text color is set to red.
@@ -407,7 +403,6 @@ def AddLogMsg(message: str) -> None:
     Returns:
         None
     """
-
     global main_window
 
     if -1 != message.find('ERR: '):
@@ -415,7 +410,7 @@ def AddLogMsg(message: str) -> None:
     else:
         main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
 
-def AddZephyrMsg(message: str) -> None:
+def AddMsgToZephyrDisplay(message: str) -> None:
     """
     Add a message to the Zephyr window with color coding based on message type.
     Parameters:
@@ -429,7 +424,6 @@ def AddZephyrMsg(message: str) -> None:
     Returns:
     None
     """
-
     global main_window
 
     if -1 != message.find('(TO)'):
@@ -452,7 +446,6 @@ def AddDebugMsg(message: str, error: bool = False) -> None:
     Returns:
     None
     """
-
     if not error:
         sg.Print(message)
     else:
@@ -460,33 +453,15 @@ def AddDebugMsg(message: str, error: bool = False) -> None:
 
 def PollWindowEvents() -> None:
     """
-    Poll the main and popup windows for events.
-    This function checks for events in the main and popup windows. When an event is detected,
-    it updates the global variables `current_action` and `new_window` to indicate the event
-    and that it should be handled. If the main window event is 'Exit', the application will
-    close. If the event is 'Suspend' or 'Resume', it toggles the suspend state of the serial
-    connection and updates the button text and color accordingly.
+    Poll the main window for events.
     Global Variables:
-    - popup_window: The popup window object.
     - main_window: The main window object.
-    - current_action: The name of the detected event.
-    - new_window: A boolean indicating if a new event should be handled.
     - serial_suspended: A boolean indicating if the serial connection is suspended.
-    Returns:
-    None
+    Returns: None
     """
-
-    global popup_window, main_window, current_action, new_window
-
-    popup_window_event = None
-    if popup_window:
-        popup_window_event, _ = popup_window.read(timeout=10)
+    global main_window, serial_suspended
 
     main_window_event, _ = main_window.read(timeout=10)
-
-    if main_window_event in [mode[0] for mode in ZephyrInstModes]:
-        im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
-        msg_to_queue(im_msg)
 
     if main_window_event in (None, '-exit-'):
         CloseAndExit()
@@ -501,92 +476,59 @@ def PollWindowEvents() -> None:
 
     if serial_suspended:
         return
+    
+    if main_window_event in [mode[0] for mode in ZephyrInstModes]:
+        im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
+        AddMsgToXmlQueue(im_msg)
 
-    if (popup_window_event in ('__TIMEOUT__', None))  and (main_window_event == '__TIMEOUT__'):
-        return
+    if main_window_event == 'TC':
+        TCMessage()
 
-    if popup_window_event: 
-        popup_window.close()
-        popup_window = None
-        current_action = popup_window_event
-        new_window = True
-    else:
-        current_action = main_window_event
-        new_window = True
+    if main_window_event == 'GPS':
+        GPSMessage()
+
+    if main_window_event == 'SW':
+        SWMessage()
+    
+    if main_window_event == 'SAck':
+        SAckMessage()
+
+    if main_window_event == 'RAAck':
+        RAAckMessage()
+
+    if main_window_event == 'TMAck':
+        TMAckMessage()
 
     return
 
-def ShowGPSPopup() -> None:
-    """
-    Displays a popup window for configuring GPS messages to the instrument.
-    This function creates and shows a popup window using the PySimpleGUI library.
-    The popup window allows the user to input a solar zenith angle (SZA) in degrees.
-    It includes a text input field pre-filled with '120' and two buttons: 'Submit' and 'Cancel'.
-    The 'Submit' button is styled with a blue background and white text, while the 'Cancel' button
-    is styled with an orange background and white text.
-    Returns:
-        None
-    """
-
-    global popup_window
-
-    gps_selector = [[sg.Text('Select a solar zenith angle (degrees)')],
-                    [sg.InputText('120')],
-                    [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-                     sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
-
-    # GUI GPS creator with SZA float validation
-    popup_window = sg.Window('GPS Message Configurator', gps_selector)
-
-def WaitGPSPopup() -> None:
-    """
-    Handles the GPS popup window interaction.
-    This function reads events from the popup window with a timeout of 10 milliseconds.
-    If the event is a timeout, it returns immediately. If the event is 'Submit', it
-    validates the Solar Zenith Angle (SZA) input, ensuring it is a float between 0 and 180.
-    If the validation fails, it shows an appropriate popup message and returns.
-    Upon successful validation, it closes the popup window, retrieves the current time,
-    and sends the GPS data with the specified SZA. It then prints a message indicating
-    the GPS data has been sent and updates the current action to 'waiting'.
-    Globals:
-        popup_window: The current popup window instance.
-        current_action: The current action state of the application.
-        new_window: A flag indicating if a new window should be created.
-    Raises:
-        ValueError: If the SZA is not a float or is out of the valid range (0-180).
-    """
-
-    global popup_window, current_action, new_window
-
-    event, values = popup_window.read(timeout=10)
-
-    if '__TIMEOUT__' == event:
-        return
-
-    if 'Submit' == event:
-        try:
-            sza = float(values[0])
-            if sza > 180 or sza < 0:
-                sg.popup('SZA must be between 0 and 180')
-                return
-        except:
-            sg.popup('SZA must be a float')
-            return
-
-    popup_window.close()
-    popup_window = None
-
+def TCMessage() -> None:
+    global main_window
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
+    tc_text = main_window['-tc-text-'].get() + ';'
+    if tc_text == ';':
+        sg.popup('TC text must not be empty', non_blocking=True)
+    else:
+        sg.Print(timestring + "Sending TC:", tc_text)
+        msg = OBC_Sim_Generic.sendTC(instrument, tc_text, cmd_filename, zephyr_port)
+        AddMsgToXmlQueue(msg)
 
-    if 'Submit' == event:
+def GPSMessage() -> None:
+    global main_window
+    sza_text = main_window['-gps-text-'].get()
+    sza = None
+    try:
+        sza = float(sza_text)
+        if sza > 180 or sza < 0:
+            sg.popup('SZA must be between 0 and 180', non_blocking=True)
+    except:
+        sg.popup('SZA must be a float', non_blocking=True)
+    if sza != None:  
+        time, millis = OBC_Sim_Generic.GetTime()
+        timestring = '[' + time + '.' + millis + '] '
         sg.Print(timestring + "Sending GPS, SZA =", str(sza))
         msg = OBC_Sim_Generic.sendGPS(sza, cmd_filename, zephyr_port)
-        msg_to_queue(msg)
-
-    # go back to the message selector
-    current_action = 'waiting'
-    new_window = True
+        AddMsgToXmlQueue(msg)
 
 def SWMessage() -> None:
     """
@@ -604,68 +546,6 @@ def SWMessage() -> None:
     sg.Print(timestring + "Sending shutdown warning")
     OBC_Sim_Generic.sendSW(instrument, cmd_filename, zephyr_port)
 
-def ShowTCPopup() -> None:
-    """
-    Display a popup window for telecommand input.
-    This function creates and shows a popup window using the PySimpleGUI library.
-    The popup window contains a text prompt, an input field for entering a telecommand,
-    and two buttons: 'Submit' and 'Cancel'.
-    The global variable 'popup_window' is used to store the reference to the created window.
-    Returns:
-        None
-    """
-
-    global popup_window
-
-    tc_selector = [[sg.Text('Input a telecommand:')],
-                    [sg.InputText('1;')],
-                    [sg.Button('Submit', size=(8,1), button_color=('white','blue')),
-                     sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
-
-    # GUI TC creator
-    popup_window = sg.Window('TC Creator', tc_selector)
-
-def WaitTCPopup() -> None:
-    """
-    Handles the TCP popup window events and processes the user input.
-    This function reads events from the TCP popup window with a timeout of 10 milliseconds.
-    If a timeout event occurs, the function returns immediately. Otherwise, it closes the
-    popup window and processes the user input.
-    The function performs the following actions:
-    - Reads the current time and formats it as a string.
-    - If the 'Submit' event is triggered, it sends a TC (telecommand) using the provided
-      instrument, command filename, and zephyr port, and prints the action to the console.
-    - Updates the current action to 'waiting' and sets the new_window flag to True.
-    Global Variables:
-    - popup_window: The current popup window instance.
-    - current_action: The current action being performed.
-    - new_window: A flag indicating if a new window should be created.
-    Returns:
-    - None
-    """
-
-    global popup_window, current_action, new_window
-
-    event, values = popup_window.read(timeout=10)
-
-    if '__TIMEOUT__' == event:
-        return
-
-    popup_window.close()
-    popup_window = None
-
-    time, millis = OBC_Sim_Generic.GetTime()
-    timestring = '[' + time + '.' + millis + '] '
-
-    if 'Submit' == event:
-        sg.Print(timestring + "Sending TC:", values[0])
-        msg = OBC_Sim_Generic.sendTC(instrument, values[0], cmd_filename, zephyr_port)
-        msg_to_queue(msg)
-
-    # go back to the message selector
-    current_action = 'waiting'
-    new_window = True
-
 def SAckMessage() -> None:
     """
     Sends a safety acknowledgment message.
@@ -675,13 +555,12 @@ def SAckMessage() -> None:
     Returns:
         None
     """
-
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending safety ack")
     msg = OBC_Sim_Generic.sendSAck(instrument, 'ACK', cmd_filename, zephyr_port)
-    msg_to_queue(msg)
+    AddMsgToXmlQueue(msg)
 
 def RAAckMessage() -> None:
     """
@@ -693,148 +572,33 @@ def RAAckMessage() -> None:
     Returns:
         None
     """
-
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sent RAAck")
     msg = OBC_Sim_Generic.sendRAAck(instrument, 'ACK', cmd_filename, zephyr_port)
-    msg_to_queue(msg)
+    AddMsgToXmlQueue(msg)
 
 def TMAckMessage() -> None:
     """
     Sends a telemetry acknowledgment message.
-    This function retrieves the current time and formats it into a string.
-    It then prints a message indicating that a telemetry acknowledgment is being sent.
-    Finally, it sends the acknowledgment message using the OBC_Sim_Generic.sendTMAck function
-    and queues the message for further processing.
     Returns:
         None
     """
-
     time, millis = OBC_Sim_Generic.GetTime()
     timestring = '[' + time + '.' + millis + '] '
 
     sg.Print(timestring + "Sending TM ack")
     msg = OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, zephyr_port)
-    msg_to_queue(msg)
+    AddMsgToXmlQueue(msg)
 
 def CloseAndExit() -> None:
     """
-    Closes the main and popup windows if they are open, and then exits the application.
-    This function checks if the global variables `main_window` and `popup_window` are not None.
-    If they are not None, it closes them. Finally, it terminates the program with an exit code of 0.
-    Returns:
-        None
     """
-
-    global main_window, popup_window
-
+    global main_window
     if main_window != None:
         main_window.close()
-
-    if popup_window != None:
-        popup_window.close()
-        popup_window = None
-
     os._exit(0)
-
-def RunCommands() -> None:
-    """
-    Executes commands based on the current action and window state.
-    This function checks the state of the `new_window` flag and the `current_action` variable
-    to determine which command to execute. It handles different actions such as showing popups,
-    sending messages, and polling window events.
-    Global Variables:
-    - new_window (bool): Indicates whether a new window should be created.
-    - current_action (str): The current action to be executed.
-    Actions:
-    - 'waiting': Polls window events or sets the state to waiting.
-    - 'IM': Shows or waits for the IM popup.
-    - 'GPS': Shows or waits for the GPS popup.
-    - 'SW': Sends the SW message and sets the state to waiting.
-    - 'TC': Shows or waits for the TC popup.
-    - 'SAck': Sends the SAck message and sets the state to waiting.
-    - 'RAAck': Sends the RAAck message and sets the state to waiting.
-    - 'TMAck': Sends the TMAck message and sets the state to waiting.
-    - Any other action: Prints an unknown window request message and sets the state to waiting.
-    Returns:
-    None
-    """
-
-    global new_window, current_action
-
-    if new_window:
-        if 'waiting' == current_action:
-            new_window = False
-
-        elif 'GPS' == current_action:
-            ShowGPSPopup()
-            new_window = False
-
-        elif 'SW' == current_action:
-            SWMessage()
-            current_action = 'waiting'
-            new_window = True
-
-        elif 'TC' == current_action:
-            ShowTCPopup()
-            new_window = False
-
-        elif 'SAck' == current_action:
-            SAckMessage()
-            current_action = 'waiting'
-            new_window = True
-
-        elif 'RAAck' == current_action:
-            RAAckMessage()
-            current_action = 'waiting'
-            new_window = True
-
-        elif 'TMAck' == current_action:
-            TMAckMessage()
-            current_action = 'waiting'
-            new_window = True
-
-        else:
-            sg.Print("Unknown new window requested: "+str(current_action))
-            current_action = 'waiting'
-            new_window = True
-
-    else:
-        if 'waiting' == current_action:
-            PollWindowEvents()
-
-        elif 'GPS' == current_action:
-            WaitGPSPopup()
-
-        elif 'TC' == current_action:
-            WaitTCPopup()
-
-        else:
-            sg.Print("Bad window to wait on"+str(current_action))
-            current_action = 'waiting'
-            new_window = True
-
-def msg_to_queue(msg: str) -> None:
-    """
-    Adds a message to the global XML queue with a timestamp.
-    This function takes a string message, adds XML tags to it to make it XML parsable,
-    and then puts it into the global `xml_queue` with a timestamp.
-    Args:
-        msg (str): The message to be added to the queue.
-    Returns:
-        None
-    """
-
-    global xml_queue
-    time, millis = OBC_Sim_Generic.GetTime()
-    timestring = '[' + time + '.' + millis + '] '
-
-    # Add tags to make the message XML parsable
-    newmsg = '<XMLTOKEN>' + msg + '</XMLTOKEN>'
-    dict = xmltodict.parse(newmsg)
-    xml_queue.put(f'{timestring}  (TO) {dict["XMLTOKEN"]}\n')  
 
 def SerialSuspend() -> None:
     """
@@ -851,7 +615,6 @@ def SerialSuspend() -> None:
     Returns:
         None
     """
-
     global serial_suspended
     global log_port
     global zephyr_port
@@ -866,6 +629,25 @@ def SerialSuspend() -> None:
         if log_port and zephyr_port.name != log_port.name:
             log_port.open()
         serial_suspended = False
+
+def AddMsgToXmlQueue(msg: str) -> None:
+    """
+    Adds a message to the global XML queue with a timestamp.
+    This function takes a string message, adds XML tags to it to make it XML parsable,
+    and then puts it into the global `xml_queue` with a timestamp.
+    Args:
+        msg (str): The message to be added to the queue.
+    Returns:
+        None
+    """
+    global xml_queue
+    time, millis = OBC_Sim_Generic.GetTime()
+    timestring = '[' + time + '.' + millis + '] '
+
+    # Add tags to make the message XML parsable
+    newmsg = '<XMLTOKEN>' + msg + '</XMLTOKEN>'
+    dict = xmltodict.parse(newmsg)
+    xml_queue.put(f'{timestring}  (TO) {dict["XMLTOKEN"]}\n')  
 
 def SetTmDir(filename: str) -> None:
     global main_window

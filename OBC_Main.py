@@ -140,8 +140,8 @@ def main() -> None:
     sza = 120
 
     while True:
-        # run command GUI
-        OBC_GUI.RunCommands()
+        # poll the GUI
+        OBC_GUI.PollWindowEvents()
 
         current_time, millis = OBC_Sim_Generic.GetTime()
         timestring = '[' + current_time + '.' + millis + '] '
@@ -155,9 +155,9 @@ def main() -> None:
 
         # handle instrument queues
         if not inst_queue.empty():
-            OBC_GUI.AddLogMsg(inst_queue.get())
+            OBC_GUI.AddMsgToLogDisplay(inst_queue.get())
         if not xml_queue.empty():
-            OBC_GUI.AddZephyrMsg(xml_queue.get())
+            OBC_GUI.AddMsgToZephyrDisplay(xml_queue.get())
         if not cmd_queue.empty():
             cmd = cmd_queue.get()
             if auto_ack:
