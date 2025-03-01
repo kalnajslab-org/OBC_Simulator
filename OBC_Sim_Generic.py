@@ -91,6 +91,10 @@ def sendIM(instrument: str, InstrumentMode: str, filename: str, port: serial.Ser
 def sendGPS(zenith: float, filename: str, port: serial.Serial) -> str:
     global msg_id_num
 
+    # The port might be suspended
+    if not port.isOpen():
+        return
+
     XML_GPS = ET.Element('GPS')
     msg_id = ET.SubElement(XML_GPS,'Msg')
     msg_id.text = str(msg_id_num)
