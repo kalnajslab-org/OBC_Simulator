@@ -41,9 +41,24 @@ import xmltodict
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
-# message types and instrument modes.
-ZephyrMessageTypes = ['GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
-ZephyrInstModes = ['SB', 'FL', 'LP', 'SA', 'EF']
+# message types and tooltips
+ZephyrMessageTypes = [
+    ('GPS',  'Send a GPS message'), 
+    ('SW',   'Send a Shutdown Warning'), 
+    ('TC',   'Send a Telecommand'), 
+    ('SAck', 'Send a Safety Ack'), 
+    ('RAAck', 'Send a RAA Ack'), 
+    ('TMAck', 'Send a TM Ack')
+]
+
+# Instrument modes and tooltips
+ZephyrInstModes = [
+    ('SB','Standby Mode'),
+    ('FL','Flight Mode'), 
+    ('LP', 'Low Power Mode'),
+    ('SA','Safety Mode'),
+    ('EF','End of Flight Mode')]
+
 
 # global window objects
 popup_window = None
@@ -342,14 +357,14 @@ def MainWindow(
 
     # Command buttons and config values at the top of the window
     button_row = []
-    for b in ZephyrInstModes:
-        button_row.append(sg.Button(b, size=(6,1), button_color=('black','lightblue')))
+    for b,t in ZephyrInstModes:
+        button_row.append(sg.Button(b, size=(6,1), button_color=('black','lightblue'),tooltip=t))
     button_row.append(sg.Text(' '))
-    for b in ZephyrMessageTypes:
-        button_row.append(sg.Button(b, size=(6,1)))
+    for b, t in ZephyrMessageTypes:
+        button_row.append(sg.Button(b, size=(6,1), tooltip=t))
     button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange')))
-    button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red')))
+    button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange'), tooltip='Suspend/Resume serial ports'))
+    button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red'), tooltip='Exit the application'))
 
     config_set_text = sg.Text("Configuration set:" + config['ConfigSet'])
     if config['SharedPorts']:
@@ -469,7 +484,7 @@ def PollWindowEvents() -> None:
 
     main_window_event, _ = main_window.read(timeout=10)
 
-    if main_window_event in ZephyrInstModes:
+    if main_window_event in [mode[0] for mode in ZephyrInstModes]:
         im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
         msg_to_queue(im_msg)
 
