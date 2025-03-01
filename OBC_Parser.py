@@ -72,7 +72,9 @@ def HandleZephyrMessage(first_line: str) -> None:
     try:
         msg_dict = xmltodict.parse(f'<XMLTOKEN>{message}</XMLTOKEN>')
     except Exception as e:
-        print('Error parsing XML:', e)
+        # Happens when a garbled message is received, due to the 
+        # sleep behavior of the MAX3381 chip. Just ignore the message.
+        print('Error parsing XML,', e)
         print('Message:', message)
         return
     msg_type = list(msg_dict["XMLTOKEN"].keys())[0]
@@ -166,7 +168,13 @@ def ReadInstrument(
                     if new_zephyr_line:
                         # skip the stratocore serial keepalive messages
                         if new_zephyr_line != b'\n':
-                            HandleZephyrMessage(str(new_zephyr_line,'ascii'))
+                            try:
+                                HandleZephyrMessage(str(new_zephyr_line,'ascii'))
+                            except UnicodeDecodeError as e:
+                                # Happens when a garbled message is received, due to the 
+                                # sleep behavior of the MAX3381 chip. Just ignore the message.
+                                print('Error handling Zephyr message, ', e)
+                                print('Zephyr line:', new_zephyr_line)
             else:
                 # port sharing, so just read from zephyr port
                 if zephyr_port.is_open: 
