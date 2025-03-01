@@ -19,7 +19,7 @@ The main window is referenced by the global variable: main_window.
 
 In order to handle UI events and received messages, a polling mechanism is used.
 RunCommands() is called by the program main loop, and handles UI activities.
-Popup windows are created by ShowIMPopup(), WaitIMPopup(), etc.
+Popup windows are created by Show..Popup(), Wait..Popup(), etc.
 The popup windows are all assigned to the global variable: popup_window.
 
 WaitMessageSelection() is called from RunCommands() to check for button presses.
@@ -41,8 +41,8 @@ import xmltodict
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
-# message types and instrument modes
-ZephyrMessageTypes = ['IM', 'GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
+# message types and instrument modes.
+ZephyrMessageTypes = ['GPS', 'SW', 'TC', 'SAck', 'RAAck', 'TMAck']
 ZephyrInstModes = ['SB', 'FL', 'LP', 'SA', 'EF']
 
 # global window objects
@@ -341,7 +341,13 @@ def MainWindow(
     xml_queue = xmlqueue
 
     # Command buttons and config values at the top of the window
-    button_row = [sg.Button(s, size=(6,1)) for s in ZephyrMessageTypes]
+    button_row = []
+    for b in ZephyrInstModes:
+        button_row.append(sg.Button(b, size=(6,1), button_color=('black','lightblue')))
+    button_row.append(sg.Text(' '))
+    for b in ZephyrMessageTypes:
+        button_row.append(sg.Button(b, size=(6,1)))
+    button_row.append(sg.Text(' '))
     button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange')))
     button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red')))
 
@@ -463,6 +469,10 @@ def PollWindowEvents() -> None:
 
     main_window_event, _ = main_window.read(timeout=10)
 
+    if main_window_event in ZephyrInstModes:
+        im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
+        msg_to_queue(im_msg)
+
     if main_window_event in (None, '-exit-'):
         CloseAndExit()
 
@@ -490,72 +500,6 @@ def PollWindowEvents() -> None:
         new_window = True
 
     return
-
-def ShowIMPopup() -> None:
-    """
-    Displays a popup window for selecting a mode from the available Zephyr instrument modes.
-    This function creates a graphical user interface (GUI) popup window using the PySimpleGUI library.
-    The window contains a list of buttons representing different modes and a cancel button.
-    Global Variables:
-    - popup_window: The window object for the popup.
-    The function does not take any parameters and does not return any value.
-    """
-
-    global popup_window
-
-    mode_selector = [[sg.Text('Select a mode')],
-                     [],
-                     [sg.Text('-'  * 110)],
-                     [sg.Button('Cancel', size=(8,1), button_color=('white','orange'))]]
-
-    for mode in ZephyrInstModes:
-        mode_selector[1].append(sg.Button(mode, size=(6,1)))
-
-    # GUI mode selector
-    popup_window = sg.Window('Mode Message Configurator', mode_selector)
-
-def WaitIMPopup() -> None:
-    """
-    Handles the popup window for setting the mode of an instrument.
-    This function reads events from the popup window with a timeout of 10 milliseconds.
-    If the event is a timeout, it returns immediately. Otherwise, it closes the popup window,
-    retrieves the current time, and logs the event. If the 'Cancel' event is not selected,
-    it sends an instrument mode (IM) message and queues the message. Finally, it sets the
-    current action to 'waiting' and flags that a new window should be created.
-    Globals:
-        popup_window: The current popup window instance.
-        current_action: The current action being performed.
-        new_window: Flag indicating whether a new window should be created.
-    Events:
-        '__TIMEOUT__': Indicates that the read operation timed out.
-        'Cancel': Indicates that the cancel button was selected.
-    Returns:
-        None
-    """
-
-
-    global popup_window, current_action, new_window
-
-    event, _ = popup_window.read(timeout=10)
-
-    if '__TIMEOUT__' == event:
-        return
-
-    popup_window.close()
-    popup_window = None
-
-    time, millis = OBC_Sim_Generic.GetTime()
-    timestring = '[' + time + '.' + millis + '] '
-
-    # as long as cancel wasn't selected, set the mode
-    if 'Cancel' != event:
-        sg.Print(timestring + "Setting mode:", event)
-        im_msg = OBC_Sim_Generic.sendIM(instrument, event, cmd_filename, zephyr_port)
-        msg_to_queue(im_msg)
-
-    # go back to the message selector
-    current_action = 'waiting'
-    new_window = True
 
 def ShowGPSPopup() -> None:
     """
@@ -809,10 +753,6 @@ def RunCommands() -> None:
         if 'waiting' == current_action:
             new_window = False
 
-        elif 'IM' == current_action:
-            ShowIMPopup()
-            new_window = False
-
         elif 'GPS' == current_action:
             ShowGPSPopup()
             new_window = False
@@ -849,9 +789,6 @@ def RunCommands() -> None:
     else:
         if 'waiting' == current_action:
             PollWindowEvents()
-
-        elif 'IM' == current_action:
-            WaitIMPopup()
 
         elif 'GPS' == current_action:
             WaitGPSPopup()
