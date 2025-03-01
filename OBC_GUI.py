@@ -53,6 +53,13 @@ cmd_filename = ''
 instrument = ''
 serial_suspended = False
 
+# set the maximum number of lines in the log window,
+# and the number of lines to keep when the maximum is reached
+MAXLOGLINES = 2000
+KEEPLOGLINES = 1600
+
+log_line_count = 0
+
 # set the overall look of the GUI
 sg.theme('SystemDefault')
 sg.set_options(font = ("Monaco", 11))
@@ -404,11 +411,22 @@ def AddMsgToLogDisplay(message: str) -> None:
         None
     """
     global main_window
+    global log_line_count
+
+    if log_line_count > MAXLOGLINES:
+        log_lines = main_window['-log_window-'+sg.WRITE_ONLY_KEY].get().split('\n')
+        log_lines = log_lines[-KEEPLOGLINES:]
+        main_window['-log_window-'+sg.WRITE_ONLY_KEY].update(value='\n'.join(log_lines))
+        log_line_count = KEEPLOGLINES
+
+    log_line_count += 1
+
+    message = message.strip()
 
     if -1 != message.find('ERR: '):
-        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="")
+        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='red', end="\n")
     else:
-        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, end="")
+        main_window['-log_window-'+sg.WRITE_ONLY_KEY].print(message, end="\n")
 
 def AddMsgToZephyrDisplay(message: str) -> None:
     """
