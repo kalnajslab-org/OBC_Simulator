@@ -89,6 +89,8 @@ def parse_args() -> argparse.Namespace:
 
 def msg_to_queue(q: queue.Queue, timestring: str, msg: str) -> None:
     global xml_queue
+    if msg == None:
+        return
     # Add tags to make the message XML parsable
     newmsg = '<XMLTOKEN>' + msg + '</XMLTOKEN>'
     dict = xmltodict.parse(newmsg)
