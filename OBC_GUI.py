@@ -395,7 +395,7 @@ def MainWindow(
     files_row = []
     files_row.append(sg.Text("TM directory"))
     files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
-    files_row.append(sg.Button('Copy', key='-copy-tm-dir-', size=b_size, button_color=('white','blue')))
+    files_row.append(sg.Button('Copy', key='-copy-tm-dir-', size=b_size, button_color=('white','blue'), tooltip='Copy TM directory to clipboard'))
 
     widgets = [
         button_row,
