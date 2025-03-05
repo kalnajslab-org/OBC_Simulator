@@ -24,6 +24,7 @@ import queue
 import serial
 import serial.tools.list_ports
 import xmltodict
+import pyperclip
 import PySimpleGUIQt as sg
 import OBC_Sim_Generic
 
@@ -63,6 +64,12 @@ log_line_count = 0
 # set the overall look of the GUI
 sg.theme('SystemDefault')
 sg.set_options(font = ("Monaco", 11))
+window_sizes = ['Small', 'Medium', 'Large']
+window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
+                'Medium': {'font_size': 10, 'width': 140, 'height': 30},
+                'Large': {'font_size': 12, 'width': 180, 'height': 40}} 
+button_sizes = {'Small': (4,1), 'Medium': (6,1), 'Large': (8,1)}
+window_size = 'Medium'
 
 def ConfigWindow() -> dict:
     '''Configuration window for the OBC simulator
@@ -93,6 +100,8 @@ def ConfigWindow() -> dict:
     ConfigSet(str): the name of the configuration set
     '''
 
+    global window_size
+
     settings = sg.UserSettings(filename='OBC_Simulator.ini', use_config_file=True, autosave=True, path=os.path.abspath(os.path.expanduser("~/")))
     if not settings['-Main-']['SelectedConfig']:
         settings['-Main-']['SelectedConfig'] = 'NewSet' # default to the first configuration set
@@ -101,10 +110,6 @@ def ConfigWindow() -> dict:
     settings_keys = ['ZephyrPort', 'LogPort', 'Instrument', 'AutoAck', 'AutoGPS', 'WindowSize', 'DataDirectory', ]
 
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
-    window_sizes = ['Small', 'Medium', 'Large']
-    window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
-                    'Medium': {'font_size': 10, 'width': 140, 'height': 30},
-                    'Large': {'font_size': 12, 'width': 180, 'height': 40}} 
 
     # Loop until all parameters are specified
     config = {}
@@ -344,27 +349,27 @@ def MainWindow(
     sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
     w = config['WindowParams']['width']
     h = config['WindowParams']['height']
-
+    b_size = button_sizes[window_size]
     # Command buttons and config values at the top of the window
     button_row = []
 
     # Instrument modes
     for b,t in ZephyrInstModes:
-        button_row.append(sg.Button(b, size=(6,1), button_color=('black','lightblue'),tooltip=t))
+        button_row.append(sg.Button(b, size=b_size, button_color=('black','lightblue'),tooltip=t))
 
     # Zephyr msgs which carry parameters
     button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('TC', key='TC', size=(6,1), button_color=('black','green'), tooltip='Send Telecommand'))
-    button_row.append(sg.InputText('', key='-tc-text-', size=(6,1), text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
+    button_row.append(sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand'))
+    button_row.append(sg.InputText('', key='-tc-text-', size=b_size, text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
 
     button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('GPS', key='GPS', size=(6,1), button_color=('black','green'), tooltip='Send GPS'))
-    button_row.append(sg.InputText('120.0', key='-gps-text-', size=(6,1), text_color='black', background_color='white', tooltip='GPS SZA value'))
+    button_row.append(sg.Button('GPS', key='GPS', size=b_size, button_color=('black','green'), tooltip='Send GPS'))
+    button_row.append(sg.InputText('120.0', key='-gps-text-', size=b_size, text_color='black', background_color='white', tooltip='GPS SZA value'))
 
     # Zephyr msgs with no parameters
     button_row.append(sg.Text(' '))
     for b, t in ZephyrMessagesNoParams:
-        button_row.append(sg.Button(b, size=(6,1), tooltip=t))
+        button_row.append(sg.Button(b, size=b_size, tooltip=t))
 
     # Suspend and Exit buttons
     button_row.append(sg.Text(' '))
@@ -390,6 +395,7 @@ def MainWindow(
     files_row = []
     files_row.append(sg.Text("TM directory"))
     files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
+    files_row.append(sg.Button('Copy', key='-copy-tm-dir-', size=b_size, button_color=('white','blue')))
 
     widgets = [
         button_row,
@@ -495,6 +501,9 @@ def PollWindowEvents() -> None:
     if serial_suspended:
         return
     
+    if main_window_event in ['-copy-tm-dir-']:
+        pyperclip.copy(main_window['-tm_directory-'].get())
+
     if main_window_event in [mode[0] for mode in ZephyrInstModes]:
         im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
         AddMsgToXmlQueue(im_msg)
