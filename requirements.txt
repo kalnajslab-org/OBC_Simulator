@@ -1,4 +1,5 @@
 pyserial
 xmltodict
+pyperclip
 pyside6
 PySimpleGUIQt
