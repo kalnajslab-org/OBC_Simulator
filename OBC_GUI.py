@@ -404,8 +404,12 @@ def MainWindow(
         config_row,
         files_row
     ]
-
-    main_window = sg.Window(title=instrument, layout=widgets, finalize=True)
+    # Create the main window with the specified layout
+    # If an icon file exists, use it; otherwise, create the window without an icon
+    if os.path.exists('./icon.ico'):
+        main_window = sg.Window(title=instrument, layout=widgets, icon=r'./icon.ico', finalize=True)
+    else:
+        main_window = sg.Window(title=instrument, layout=widgets, finalize=True)
 
 def AddMsgToLogDisplay(message: str) -> None:
     """
