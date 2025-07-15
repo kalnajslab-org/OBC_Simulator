@@ -39,7 +39,7 @@ instrument = ''
 def GetDateTime() -> tuple:
     # create date and time strings
     current_datetime = datetime.datetime.now()
-    date = str(current_datetime.date().strftime("%d-%b-%y"))
+    date = str(current_datetime.date().strftime("%Y-%m-%d"))
     curr_time = str(current_datetime.time().strftime("%H:%M:%S"))
     curr_time_file = str(current_datetime.time().strftime("%H-%M-%S"))
     milliseconds = str(current_datetime.time().strftime("%f"))[:-3]
@@ -108,7 +108,7 @@ def HandleZephyrMessage(first_line: str) -> None:
 def WriteTMFile(message: str, binary: bytes) -> None:
     date, _, time, _ = GetDateTime()
 
-    filename = tm_dir + '/TM_' + date + '_' + time + '.' + instrument + '.dat'
+    filename = tm_dir + '/TM_' + date + 'T' + time + '.' + instrument + '.dat'
 
     with open(filename, 'wb') as tm_file:
         tm_file.write(message.encode())

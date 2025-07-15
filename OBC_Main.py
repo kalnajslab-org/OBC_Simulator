@@ -56,7 +56,7 @@ def FileSetup(config:dict) -> None:
     data_dir = config['DataDirectory']+'/'
     if not os.path.exists(data_dir):
         os.mkdir(data_dir)
-    output_dir = data_dir + instrument + "_" + date + "_" + start_time_file
+    output_dir = data_dir + instrument + "_" + date + "T" + start_time_file
     os.mkdir(output_dir)
 
     # create a directory for individual TM messages
@@ -64,9 +64,9 @@ def FileSetup(config:dict) -> None:
     os.mkdir(tm_dir)
 
     # create instrument output and command filenames
-    inst_filename = output_dir + "/" + instrument + "_DBG_" + date + "_" + start_time_file + ".txt"
-    xml_filename  = output_dir + "/" + instrument + "_XML_" + date + "_" + start_time_file + ".txt"
-    cmd_filename  = output_dir + "/" + instrument + "_CMD_" + date + "_" + start_time_file + ".txt"
+    inst_filename = output_dir + "/" + instrument + "_DBG_" + date + "T" + start_time_file + ".txt"
+    xml_filename  = output_dir + "/" + instrument + "_XML_" + date + "T" + start_time_file + ".txt"
+    cmd_filename  = output_dir + "/" + instrument + "_CMD_" + date + "T" + start_time_file + ".txt"
 
     # create the files
     with open(inst_filename, "w") as inst:
