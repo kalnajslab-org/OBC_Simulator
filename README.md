@@ -1,5 +1,7 @@
 # OBC Simulator
 
+![OBC Simulator Overview](OBC_Simulator.png)
+
 This repository contains a platform-independent, Python-based simulator for the Zephyr Onboard Computer (OBC) for the CNES Strateole 2 campaign. This simulator adds the ability to receive and display debug messages from LASP instruments over the same serial connection as the XML-based Zephyr OBC communications.
 
 ## Quickstart
