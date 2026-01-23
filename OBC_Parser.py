@@ -149,6 +149,9 @@ def ReadInstrument(
     cmd_queue = cmd_queue_in
 
     port_sharing = config['SharedPorts']
+    zephyr_port.flushInput()
+    if port_sharing:
+        log_port.flushInput()
 
     # main loop
     while True:
