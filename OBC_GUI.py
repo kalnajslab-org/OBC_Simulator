@@ -60,7 +60,7 @@ MAXLOGLINES = 2000
 KEEPLOGLINES = 1600
 
 log_line_count = 0
-message_display_types = ['GPS', 'TM', 'TC', 'TMAck', 'TCAck', 'IMAck', 'IMR']
+message_display_types = ['GPS', 'TM', 'TC', 'IM', 'TMAck', 'TCAck', 'IMAck', 'IMR']
 message_display_filters = {msg_type: True for msg_type in message_display_types}
 display_toggle_keys = {msg_type: f'-display-{msg_type}-' for msg_type in message_display_types}
 display_all_toggle_key = '-display-all-'
@@ -407,16 +407,24 @@ def MainWindow(
     for msg_type in message_display_types:
         if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'black')))
-        elif msg_type in ('GPS', 'TC'):
+        elif msg_type in ('GPS', 'TC', 'IM'):
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'blue')))
         else:
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('black', 'green')))
 
-    display_filter_frame = [sg.Frame('Messages to Display', [display_filter_row])]
+    display_filter_box = [
+        sg.Column(
+            [
+                [sg.Text('Messages to Display')],
+                display_filter_row
+            ],
+            pad=((6, 6), (4, 6))
+        )
+    ]
 
     widgets = [
         button_row,
-        display_filter_frame,
+        display_filter_box,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
          sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])],
         config_row,
@@ -741,7 +749,7 @@ def GetDisplayButtonColor(msg_type: str, enabled: bool) -> tuple:
         return ('white', 'gray')
     if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
         return ('white', 'black')
-    if msg_type in ('GPS', 'TC'):
+    if msg_type in ('GPS', 'TC', 'IM'):
         return ('white', 'blue')
     return ('black', 'green')
 
