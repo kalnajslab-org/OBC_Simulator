@@ -394,14 +394,21 @@ def MainWindow(
     h = config['WindowParams']['height']
     b_size = button_sizes[window_size]
     # Command buttons and config values at the top of the window
+    mode_button_row = []
+    for b,t in ZephyrInstModes:
+        mode_button_row.append(sg.Button(b, size=b_size, button_color=('black','lightblue'),tooltip=t))
+
+    mode_select_box = sg.Column(
+        [
+            [sg.Text('Mode Select')],
+            mode_button_row
+        ],
+        pad=((6, 6), (4, 6))
+    )
+
     button_row = []
 
-    # Instrument modes
-    for b,t in ZephyrInstModes:
-        button_row.append(sg.Button(b, size=b_size, button_color=('black','lightblue'),tooltip=t))
-
     # Zephyr msgs which carry parameters
-    button_row.append(sg.Text(' '))
     button_row.append(sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand', bind_return_key=True))
     button_row.append(sg.InputText('', key='-tc-text-', size=b_size, text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
 
@@ -460,7 +467,7 @@ def MainWindow(
     ]
 
     widgets = [
-        button_row,
+        [mode_select_box, sg.Text(' ')] + button_row,
         display_filter_box,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
          sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])],
