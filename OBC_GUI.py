@@ -60,6 +60,10 @@ MAXLOGLINES = 2000
 KEEPLOGLINES = 1600
 
 log_line_count = 0
+message_display_types = ['GPS', 'TM', 'TC', 'TMAck', 'TCAck', 'IMAck', 'IMR']
+message_display_filters = {msg_type: True for msg_type in message_display_types}
+display_toggle_keys = {msg_type: f'-display-{msg_type}-' for msg_type in message_display_types}
+display_all_toggle_key = '-display-all-'
 
 # set the overall look of the GUI
 sg.theme('SystemDefault')
@@ -339,12 +343,14 @@ def MainWindow(
     global instrument
     global cmd_filename
     global xml_queue
+    global message_display_filters
 
     instrument = config['Instrument']
     log_port = logport
     zephyr_port = zephyrport
     cmd_filename = cmd_fname
     xml_queue = xmlqueue
+    message_display_filters = {msg_type: True for msg_type in message_display_types}
 
     sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
     w = config['WindowParams']['width']
@@ -397,8 +403,20 @@ def MainWindow(
     files_row.append(sg.InputText(' ', key='-tm_directory-', readonly=True, size=(80,1)))
     files_row.append(sg.Button('Copy', key='-copy-tm-dir-', size=b_size, button_color=('white','blue'), tooltip='Copy TM directory to clipboard'))
 
+    display_filter_row = [sg.Button('All', key=display_all_toggle_key, size=b_size, button_color=('black', 'lightgray'), tooltip='Toggle all message display filters')]
+    for msg_type in message_display_types:
+        if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
+            display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'black')))
+        elif msg_type in ('GPS', 'TC'):
+            display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'blue')))
+        else:
+            display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('black', 'green')))
+
+    display_filter_frame = [sg.Frame('Messages to Display', [display_filter_row])]
+
     widgets = [
         button_row,
+        display_filter_frame,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
          sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])],
         config_row,
@@ -410,6 +428,7 @@ def MainWindow(
         main_window = sg.Window(title=instrument, layout=widgets, icon=r'./icon.ico', finalize=True)
     else:
         main_window = sg.Window(title=instrument, layout=widgets, finalize=True)
+    UpdateDisplayFilterButtons()
 
 def AddMsgToLogDisplay(message: str) -> None:
     """
@@ -453,6 +472,9 @@ def AddMsgToZephyrDisplay(message: str) -> None:
     None
     """
     global main_window
+
+    if not ShouldDisplayMessage(message):
+        return
 
     if -1 != message.find('(TO)'):
         main_window['-zephyr_window-'+sg.WRITE_ONLY_KEY].print(message, text_color='blue', end="")
@@ -507,6 +529,16 @@ def PollWindowEvents() -> None:
     
     if main_window_event in ['-copy-tm-dir-']:
         pyperclip.copy(main_window['-tm_directory-'].get())
+
+    if main_window_event == display_all_toggle_key:
+        ToggleAllMessageDisplayFilters()
+        return
+
+    if main_window_event in display_toggle_keys.values():
+        for msg_type, key in display_toggle_keys.items():
+            if main_window_event == key:
+                ToggleMessageDisplayFilter(msg_type)
+                return
 
     if main_window_event in [mode[0] for mode in ZephyrInstModes]:
         im_msg = OBC_Sim_Generic.sendIM(instrument, main_window_event, cmd_filename, zephyr_port)
@@ -683,3 +715,55 @@ def AddMsgToXmlQueue(msg: str) -> None:
 def SetTmDir(filename: str) -> None:
     global main_window
     main_window['-tm_directory-'].update(filename)
+
+def MessageMatchesType(message: str, msg_type: str) -> bool:
+    if f"'{msg_type}':" in message:
+        return True
+    if f'"{msg_type}":' in message:
+        return True
+    if f'<{msg_type}>' in message:
+        return True
+    return False
+
+def ShouldDisplayMessage(message: str) -> bool:
+    matched_type = False
+    for msg_type in message_display_types:
+        if MessageMatchesType(message, msg_type):
+            matched_type = True
+            if not message_display_filters[msg_type]:
+                return False
+    if matched_type:
+        return True
+    return True
+
+def GetDisplayButtonColor(msg_type: str, enabled: bool) -> tuple:
+    if not enabled:
+        return ('white', 'gray')
+    if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
+        return ('white', 'black')
+    if msg_type in ('GPS', 'TC'):
+        return ('white', 'blue')
+    return ('black', 'green')
+
+def UpdateDisplayFilterButtons() -> None:
+    global main_window
+    if not main_window:
+        return
+    for msg_type in message_display_types:
+        main_window[display_toggle_keys[msg_type]].update(button_color=GetDisplayButtonColor(msg_type, message_display_filters[msg_type]))
+    if all(message_display_filters.values()):
+        main_window[display_all_toggle_key].update(button_color=('black', 'green'))
+    elif any(message_display_filters.values()):
+        main_window[display_all_toggle_key].update(button_color=('black', 'orange'))
+    else:
+        main_window[display_all_toggle_key].update(button_color=('white', 'gray'))
+
+def ToggleMessageDisplayFilter(msg_type: str) -> None:
+    message_display_filters[msg_type] = not message_display_filters[msg_type]
+    UpdateDisplayFilterButtons()
+
+def ToggleAllMessageDisplayFilters() -> None:
+    target_state = not all(message_display_filters.values())
+    for msg_type in message_display_types:
+        message_display_filters[msg_type] = target_state
+    UpdateDisplayFilterButtons()
