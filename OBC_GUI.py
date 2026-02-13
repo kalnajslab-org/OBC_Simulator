@@ -20,6 +20,8 @@ parameters are returned to the main program as a dictionary.
 # modules
 import os
 import sys
+import ast
+import json
 import queue
 import serial
 import serial.tools.list_ports
@@ -53,6 +55,7 @@ zephyr_port = None
 cmd_filename = ''
 instrument = ''
 serial_suspended = False
+active_config_set = None
 
 # set the maximum number of lines in the log window,
 # and the number of lines to keep when the maximum is reached
@@ -74,6 +77,29 @@ window_params = {'Small': {'font_size': 8, 'width': 100, 'height': 20},
                 'Large': {'font_size': 12, 'width': 180, 'height': 40}} 
 button_sizes = {'Small': (4,1), 'Medium': (6,1), 'Large': (8,1)}
 window_size = 'Medium'
+
+def NormalizeMessageDisplayFilters(filters: dict) -> dict:
+    parsed_filters = {}
+    if isinstance(filters, dict):
+        parsed_filters = filters
+    elif isinstance(filters, str):
+        # UserSettings may deserialize nested structures as strings for older entries.
+        try:
+            json_filters = json.loads(filters)
+            if isinstance(json_filters, dict):
+                parsed_filters = json_filters
+        except Exception:
+            try:
+                literal_filters = ast.literal_eval(filters)
+                if isinstance(literal_filters, dict):
+                    parsed_filters = literal_filters
+            except Exception:
+                parsed_filters = {}
+
+    normalized = {}
+    for msg_type in message_display_types:
+        normalized[msg_type] = bool(parsed_filters.get(msg_type, True))
+    return normalized
 
 def ConfigWindow() -> dict:
     '''Configuration window for the OBC simulator
@@ -111,7 +137,7 @@ def ConfigWindow() -> dict:
         settings['-Main-']['SelectedConfig'] = 'NewSet' # default to the first configuration set
 
     # Create a list of settings keys. This will need to be updated if new settings are added.
-    settings_keys = ['ZephyrPort', 'LogPort', 'Instrument', 'AutoAck', 'AutoGPS', 'WindowSize', 'DataDirectory', ]
+    settings_keys = ['ZephyrPort', 'LogPort', 'Instrument', 'AutoAck', 'AutoGPS', 'WindowSize', 'DataDirectory', 'MessageDisplayFilters']
 
     instruments = ['RATS', 'LPC', 'RACHUTS', 'FLOATS']
 
@@ -128,6 +154,8 @@ def ConfigWindow() -> dict:
         window_size = settings[config_set].get('WindowSize', 'Medium')
         zephyr_port = settings[config_set].get('ZephyrPort', 'None')
         log_port = settings[config_set].get('LogPort', 'None')
+        msg_display_filters = NormalizeMessageDisplayFilters(settings[config_set].get('MessageDisplayFilters', {}))
+        settings[config_set]['MessageDisplayFilters'] = msg_display_filters
 
         # Find all of the appropriate serial ports.
         ports = [port.device for port in serial.tools.list_ports.comports()]
@@ -213,7 +241,10 @@ def ConfigWindow() -> dict:
                 continue
             # Copy current settings to a new config set
             for key in settings_keys:
-                settings[new_set_name][key] = settings[config_set][key]
+                if key == 'MessageDisplayFilters':
+                    settings[new_set_name][key] = NormalizeMessageDisplayFilters(settings[config_set].get(key, {}))
+                else:
+                    settings[new_set_name][key] = settings[config_set].get(key, None)
             # delete the old config set
             try:
                 settings.delete_section(config_set)
@@ -232,7 +263,10 @@ def ConfigWindow() -> dict:
             settings['-Main-']['SelectedConfig'] = new_config_set
             # Copy current settings to new config set
             for key in settings_keys:
-                settings[new_config_set][key] = settings[config_set][key]
+                if key == 'MessageDisplayFilters':
+                    settings[new_config_set][key] = NormalizeMessageDisplayFilters(settings[config_set].get(key, {}))
+                else:
+                    settings[new_config_set][key] = settings[config_set].get(key, None)
             continue
 
         if event in ('-popup-delete-config-'):
@@ -305,6 +339,7 @@ def ConfigWindow() -> dict:
     config['WindowParams'] = window_params[window_size]
     config['DataDirectory'] = settings[config_set]['DataDirectory']
     config['ConfigSet'] = config_set
+    config['MessageDisplayFilters'] = msg_display_filters
 
     # Print the selected parameters to the debug window.
     sg.Print("Instrument:", config['Instrument'])
@@ -344,13 +379,15 @@ def MainWindow(
     global cmd_filename
     global xml_queue
     global message_display_filters
+    global active_config_set
 
     instrument = config['Instrument']
     log_port = logport
     zephyr_port = zephyrport
     cmd_filename = cmd_fname
     xml_queue = xmlqueue
-    message_display_filters = {msg_type: True for msg_type in message_display_types}
+    active_config_set = config['ConfigSet']
+    message_display_filters = NormalizeMessageDisplayFilters(config.get('MessageDisplayFilters', {}))
 
     sg.set_options(font = ("Monaco", config['WindowParams']['font_size']))
     w = config['WindowParams']['width']
@@ -768,10 +805,19 @@ def UpdateDisplayFilterButtons() -> None:
 
 def ToggleMessageDisplayFilter(msg_type: str) -> None:
     message_display_filters[msg_type] = not message_display_filters[msg_type]
+    SaveMessageDisplayFiltersToSettings()
     UpdateDisplayFilterButtons()
 
 def ToggleAllMessageDisplayFilters() -> None:
     target_state = not all(message_display_filters.values())
     for msg_type in message_display_types:
         message_display_filters[msg_type] = target_state
+    SaveMessageDisplayFiltersToSettings()
     UpdateDisplayFilterButtons()
+
+def SaveMessageDisplayFiltersToSettings() -> None:
+    global active_config_set
+    if not active_config_set:
+        return
+    settings = sg.UserSettings(filename='OBC_Simulator.ini', use_config_file=True, autosave=True, path=os.path.abspath(os.path.expanduser("~/")))
+    settings[active_config_set]['MessageDisplayFilters'] = NormalizeMessageDisplayFilters(message_display_filters)
