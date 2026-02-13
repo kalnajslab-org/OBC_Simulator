@@ -63,7 +63,7 @@ MAXLOGLINES = 2000
 KEEPLOGLINES = 1600
 
 log_line_count = 0
-message_display_types = ['GPS', 'TM', 'TC', 'IM', 'TMAck', 'TCAck', 'IMAck', 'IMR']
+message_display_types = ['TM', 'TC', 'IM', 'TMAck', 'GPS', 'TCAck', 'IMAck', 'IMR']
 message_display_filters = {msg_type: True for msg_type in message_display_types}
 display_toggle_keys = {msg_type: f'-display-{msg_type}-' for msg_type in message_display_types}
 display_all_toggle_key = '-display-all-'
@@ -394,30 +394,67 @@ def MainWindow(
     h = config['WindowParams']['height']
     b_size = button_sizes[window_size]
     # Command buttons and config values at the top of the window
-    button_row = []
-
-    # Instrument modes
+    mode_button_row = []
     for b,t in ZephyrInstModes:
-        button_row.append(sg.Button(b, size=b_size, button_color=('black','lightblue'),tooltip=t))
+        mode_button_row.append(sg.Button(b, size=b_size, button_color=('black','lightblue'),tooltip=t))
 
-    # Zephyr msgs which carry parameters
-    button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand'))
-    button_row.append(sg.InputText('', key='-tc-text-', size=b_size, text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
+    mode_select_box = sg.Column(
+        [
+            [sg.Text('Mode Select')],
+            mode_button_row
+        ],
+        pad=((6, 6), (4, 6))
+    )
 
-    button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('GPS', key='GPS', size=b_size, button_color=('black','green'), tooltip='Send GPS'))
-    button_row.append(sg.InputText('120.0', key='-gps-text-', size=b_size, text_color='black', background_color='white', tooltip='GPS SZA value'))
+    tc_box = sg.Column(
+        [
+            [sg.Text('TeleCommand')],
+            [
+                sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand', bind_return_key=True, pad=((0, 4), (2, 2))),
+                sg.InputText('', key='-tc-text-', size=(6, 1), text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended', pad=((0, 0), (2, 2)))
+            ]
+        ],
+        pad=((6, 6), (4, 6))
+    )
 
-    # Zephyr msgs with no parameters
-    button_row.append(sg.Text(' '))
-    for b, t in ZephyrMessagesNoParams:
-        button_row.append(sg.Button(b, size=b_size, tooltip=t))
+    sza_box = sg.Column(
+        [
+            [sg.Text('SZA')],
+            [
+                sg.Button('GPS', key='GPS', size=b_size, button_color=('black','green'), tooltip='Send GPS', pad=((0, 4), (2, 2))),
+                sg.InputText('120.0', key='-gps-text-', size=(6, 1), text_color='black', background_color='white', tooltip='GPS SZA value', pad=((0, 0), (2, 2)))
+            ]
+        ],
+        pad=((6, 6), (4, 6))
+    )
 
-    # Suspend and Exit buttons
+    zephyr_tooltips = {name: tip for name, tip in ZephyrMessagesNoParams}
+    zephyr_commands_box = sg.Column(
+        [
+            [sg.Text('Zephyr Commands')],
+            [
+                sg.Button('SW', size=b_size, tooltip=zephyr_tooltips.get('SW', 'Send a Shutdown Warning')),
+                sg.Button('SAck', size=b_size, tooltip=zephyr_tooltips.get('SAck', 'Send a Safety Ack')),
+                sg.Button('RAAck', size=b_size, tooltip=zephyr_tooltips.get('RAAck', 'Send a RAA Ack')),
+                sg.Button('TMAck', size=b_size, tooltip=zephyr_tooltips.get('TMAck', 'Send a TM Ack'))
+            ]
+        ],
+        pad=((6, 6), (4, 6))
+    )
+
+    button_row = []
     button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange'), tooltip='Suspend/Resume serial ports'))
-    button_row.append(sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red'), tooltip='Exit the application'))
+
+    suspend_exit_box = sg.Column(
+        [
+            [sg.Text('Behavior')],
+            [
+                sg.Button('Suspend', key='-suspend-', size=(8,1), button_color=('white','orange'), tooltip='Suspend/Resume serial ports'),
+                sg.Button('Exit', key='-exit-', size=(8,1), button_color=('white','red'), tooltip='Exit the application')
+            ]
+        ],
+        pad=((6, 6), (4, 6))
+    )
 
     # Configuration settings and file paths
     config_set_text = sg.Text("Configuration set:" + config['ConfigSet'])
@@ -442,9 +479,9 @@ def MainWindow(
 
     display_filter_row = [sg.Button('All', key=display_all_toggle_key, size=b_size, button_color=('black', 'lightgray'), tooltip='Toggle all message display filters')]
     for msg_type in message_display_types:
-        if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
+        if msg_type in ('IMAck', 'IMR', 'TCAck'):
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'black')))
-        elif msg_type in ('GPS', 'TC', 'IM'):
+        elif msg_type in ('GPS', 'TC', 'IM', 'TMAck'):
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('white', 'blue')))
         else:
             display_filter_row.append(sg.Button(msg_type, key=display_toggle_keys[msg_type], size=b_size, button_color=('black', 'green')))
@@ -460,7 +497,7 @@ def MainWindow(
     ]
 
     widgets = [
-        button_row,
+        [mode_select_box, tc_box, sza_box, zephyr_commands_box, suspend_exit_box, sg.Text(' ')] + button_row,
         display_filter_box,
         [sg.Column([[sg.Text('StratoCore Log Messages')], [sg.MLine(key='-log_window-'+sg.WRITE_ONLY_KEY, size=(w/4,h))]]),
          sg.Column([[sg.Text(f'Messages TO/FROM {instrument}')], [sg.MLine(key='-zephyr_window-'+sg.WRITE_ONLY_KEY, size=(3*w/4,h))]])],
@@ -784,9 +821,9 @@ def ShouldDisplayMessage(message: str) -> bool:
 def GetDisplayButtonColor(msg_type: str, enabled: bool) -> tuple:
     if not enabled:
         return ('white', 'gray')
-    if msg_type in ('IMAck', 'IMR', 'TMAck', 'TCAck'):
+    if msg_type in ('IMAck', 'IMR', 'TCAck'):
         return ('white', 'black')
-    if msg_type in ('GPS', 'TC', 'IM'):
+    if msg_type in ('GPS', 'TC', 'IM', 'TMAck'):
         return ('white', 'blue')
     return ('black', 'green')
 
