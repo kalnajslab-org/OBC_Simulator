@@ -155,13 +155,25 @@ def main() -> None:
             gps_msg = OBC_Sim_Generic.sendGPS(sza, cmd_filename, config['ZephyrPort'])
             msg_to_queue(xml_queue, timestring, gps_msg)
 
-        # handle instrument queues
-        if not inst_queue.empty():
-            OBC_GUI.AddMsgToLogDisplay(inst_queue.get())
-        if not xml_queue.empty():
-            OBC_GUI.AddMsgToZephyrDisplay(xml_queue.get())
-        if not cmd_queue.empty():
-            cmd = cmd_queue.get()
+        # Handle queues in batches to prevent backlog after GUI/event-loop stalls.
+        for _ in range(200):
+            try:
+                OBC_GUI.AddMsgToLogDisplay(inst_queue.get_nowait())
+            except queue.Empty:
+                break
+
+        for _ in range(200):
+            try:
+                OBC_GUI.AddMsgToZephyrDisplay(xml_queue.get_nowait())
+            except queue.Empty:
+                break
+
+        for _ in range(50):
+            try:
+                cmd = cmd_queue.get_nowait()
+            except queue.Empty:
+                break
+
             if auto_ack:
                 if 'TMAck' == cmd:
                     msg = OBC_Sim_Generic.sendTMAck(instrument, 'ACK', cmd_filename, config['ZephyrPort'])
