@@ -402,7 +402,7 @@ def MainWindow(
 
     # Zephyr msgs which carry parameters
     button_row.append(sg.Text(' '))
-    button_row.append(sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand'))
+    button_row.append(sg.Button('TC', key='TC', size=b_size, button_color=('black','green'), tooltip='Send Telecommand', bind_return_key=True))
     button_row.append(sg.InputText('', key='-tc-text-', size=b_size, text_color='black', background_color='white', tooltip='TC Text, semicolon will be appended'))
 
     button_row.append(sg.Text(' '))
